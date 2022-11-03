@@ -1,0 +1,21 @@
+
+cassandra:
+  image: cassandra:latest
+  container_name: cassandra
+  ports:
+    - 7000:7000 # - Internode communication (not used if TLS enabled)
+    - 7001:7001 # - TLS Internode communication (used if TLS enabled)
+    - 7199:7199 # - JMX (was 8080 pre Cassandra 0.8.xx)
+    - 9042:9042 # - CQL native transport port
+    - 9160:9160 # - Thrift client API
+  restart: always
+  environment:
+     - CASSANDRA_BROADCAST_ADDRESS=host.docker.internal
+     - CASSANDRA_SEEDS=host.docker.internal 
+  volumes:
+      - ./out/cassandra_data:/var/lib/cassandra
+  healthcheck:
+      test: ["CMD", "cqlsh", "-u cassandra", "-p cassandra" ,"-e describe keyspaces"]
+      interval: 15s
+      timeout: 10s
+      retries: 10

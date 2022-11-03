@@ -1,11 +1,13 @@
 package main
 
 import (
-	"github.com/lenninlasd/TradingEngine/engine"
 	"log"
 	"fmt"
 	"encoding/json"
 	"net/http"
+
+	"github.com/lenninlasd/TradingEngine/engine"
+	"github.com/lenninlasd/TradingEngine/api"
 )
 
 // create the order book
@@ -37,5 +39,6 @@ func processOrderBook(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	handleRequests()
+	// handleRequests()
+	api.Routes()
 }

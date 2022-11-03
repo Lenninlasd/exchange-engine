@@ -1,11 +1,12 @@
-package main
+package types
 
 import (
 	"encoding/json"
+	"github.com/gocql/gocql"
 )
 
 type User struct {
-	ID     string `json:"id"`
+	ID     gocql.UUID `json:"id"`
 	Email     string `json:"email"`
 }
 
