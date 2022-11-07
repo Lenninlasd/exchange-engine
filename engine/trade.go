@@ -1,12 +1,15 @@
 package engine
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/gocql/gocql"
+)
 
 type Trade struct {
-	TakerOrderID string `json:"taker_order_id"`
-	MakerOrderID string `json:"maker_order_id"`
-	Amount       uint64 `json:"amount"`
-	Price        uint64 `json:"price"`
+	TakerOrderID gocql.UUID `json:"taker_order_id"`
+	MakerOrderID gocql.UUID `json:"maker_order_id"`
+	Amount       float64 	`json:"amount"`
+	Price        float64 	`json:"price"`
 }
 
 func (trade *Trade) FromJSON(msg []byte) error {

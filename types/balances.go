@@ -7,11 +7,9 @@ import (
 )
 
 type Balance struct {
-	Id			gocql.UUID 	`json:"id"`
 	UserId		gocql.UUID 	`json:"user_id"`
-	CoinType	string 		`json:"coin_type"`
-	Amount		int64 		`json:"amount"`
 	Timestamp	time.Time  	`json:"time_stamp"`
+	Amount		float64 	`json:"amount"`
 }
 
 func (balance *Balance) FromJSON(msg []byte) error {

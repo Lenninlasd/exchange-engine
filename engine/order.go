@@ -2,14 +2,15 @@ package engine
 
 import (
 	"encoding/json"
+	"github.com/gocql/gocql"
 )
 
 type Order struct {
-	Amount uint64 `json:"amount"`
-	Price  uint64 `json:"price"`
-	ID     string `json:"id"`
-	Side   int8   `json:"side"`
-	UserId string `json:"user_id"`
+	ID     gocql.UUID	`json:"id"`
+	UserId gocql.UUID	`json:"user_id"`
+	Amount float64		`json:"amount"`
+	Price  float64		`json:"price"`
+	Side   int8			`json:"side"`
 }
 
 func (order *Order) FromJSON(msg []byte) error {
