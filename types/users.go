@@ -6,7 +6,7 @@ import (
 )
 
 type User struct {
-	ID     gocql.UUID `json:"id"`
+	Id     gocql.UUID `json:"id"`
 	Email     string `json:"email"`
 }
 

@@ -6,9 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"github.com/gocql/gocql"
-
-	// "github.com/gorilla/mux"
-	// "github.com/lenninlasd/TradingEngine/types"
 	"github.com/lenninlasd/TradingEngine/engine"
 )
 
@@ -20,6 +17,19 @@ var OrderBook = engine.OrderBook{
 	SellOrders: make([]engine.Order, 0, 100),
 }
 
+func CreateMakerTakerBalances(
+	takerId gocql.UUID,
+	makerId gocql.UUID,
+	newTakerAmount float64,
+	newMakerAmount float64,
+) error {
+	return Session.Query(
+		`BEGIN BATCH 
+			INSERT INTO BTCbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)
+			INSERT INTO BTCbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)
+		APPLY BATCH`, takerId, newTakerAmount, makerId, newMakerAmount).Exec()
+}
+
 func CreateOrder(w http.ResponseWriter, r *http.Request) {
 	var NewOrder engine.Order
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -28,12 +38,12 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	NewOrder.FromJSON(reqBody)
-	NewOrder.ID = gocql.TimeUUID()
+	NewOrder.Id = gocql.TimeUUID()
 	userBalance := GetUserBalance(NewOrder.UserId)
-	
+
 	if NewOrder.Amount < MIN_AMOUNT {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "%s", "The minimum amount should be greater than MIN_AMOUNT")
+		fmt.Fprintf(w, "The minimum amount should be greater than %s", fmt.Sprintf("%v", MIN_AMOUNT))
 		return
 	}
 
@@ -45,114 +55,36 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
  
 	trades := OrderBook.Process(NewOrder)
 
-	fmt.Println("NewOrder", NewOrder)
-	fmt.Println("trades", trades)
+	if len(trades) == 1 {
+		makerUserBalance := GetUserBalance(trades[0].MakerUserId)
+		
+		var newTakerAmount float64
+		var newMakerAmount float64
 
+		if NewOrder.Side == 1 {
+			newTakerAmount = userBalance[0].Amount + trades[0].Amount
+			newMakerAmount = makerUserBalance[0].Amount - trades[0].Amount
 
-	// if err != nil {
-	// 	fmt.Println("Error while inserting")
-	// 	fmt.Println(err)
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
+		} else {
+			newTakerAmount = userBalance[0].Amount - trades[0].Amount
+			newMakerAmount = makerUserBalance[0].Amount + trades[0].Amount
+		}
+
+		err = CreateMakerTakerBalances(
+			NewOrder.UserId,
+			makerUserBalance[0].UserId,
+			newTakerAmount,
+			newMakerAmount,
+		)
+	}
+
+	if err != nil {
+		fmt.Println("Error while inserting")
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusCreated)
 	Conv, _ := json.MarshalIndent(OrderBook, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
 }
-
-func GetOrderBook(w http.ResponseWriter, r *http.Request) {
-	var orders []engine.Order
-	m := map[string]interface{}{}
-
-	iter := Session.Query("SELECT * FROM orderbook").Iter()
-	for iter.MapScan(m) {
-		orders = append(orders, engine.Order{
-			ID:		m["id"].(gocql.UUID),
-			UserId:	m["user_id"].(gocql.UUID),
-			Amount:	m["amount"].(float64),
-			Price:	m["price"].(float64),
-			Side:	m["side"].(int8),
-		})
-		m = map[string]interface{}{}
-	}
-
-	Conv, _ := json.MarshalIndent(orders, "", " ")
-	fmt.Fprintf(w, "%s", string(Conv))
-
-}
-
-// func GetOneUser(w http.ResponseWriter, r *http.Request) {
-// 	UserID := mux.Vars(r)["id"]
-// 	var users []types.User
-// 	m := map[string]interface{}{}
-
-// 	iter := Session.Query("SELECT * FROM users WHERE id=?", UserID).Iter()
-// 	for iter.MapScan(m) {
-// 		users = append(users, types.User{
-// 			ID:		m["id"].(gocql.UUID),
-// 			Email:	m["email"].(string),
-// 		})
-// 		m = map[string]interface{}{}
-// 	}
-
-// 	Conv, _ := json.MarshalIndent(users, "", " ")
-// 	fmt.Fprintf(w, "%s", string(Conv))
-
-// }
-
-// func ExistUser(UserID gocql.UUID) bool {
-// 	var Count int
-// 	err := Session.Query("SELECT count(*) FROM users WHERE id=?", UserID).Scan(&Count)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	return Count == 1
-// }
-
-// func CountAllUsers(w http.ResponseWriter, r *http.Request) {
-
-// 	var Count string
-// 	err := Session.Query("SELECT count(*) FROM users").Scan(&Count)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	fmt.Fprintf(w, "%s ", Count)
-
-// }
-// func DeleteOneUser(w http.ResponseWriter, r *http.Request) {
-// 	UserID := mux.Vars(r)["id"]
-// 	err := Session.Query("DELETE FROM users WHERE id = ?", UserID).Exec();
-// 	if err != nil {
-// 		fmt.Println("Error while deleting")
-// 		fmt.Println(err)
-// 	}
-// 	fmt.Fprintf(w, "deleted successfully the user num %s ", UserID)
-// }
-
-// func DeleteAllUsers(w http.ResponseWriter, r *http.Request) {
-// 	err := Session.Query("TRUNCATE users").Exec();
-// 	if err != nil {
-// 		fmt.Println("Error while deleting all users")
-// 		fmt.Println(err)
-// 	}
-// 	fmt.Fprintf(w, "deleted all successfully")
-
-// }
-
-// func UpdateUser(w http.ResponseWriter, r *http.Request) {
-// 	UserID := mux.Vars(r)["id"]
-// 	var UpdateUser types.User
-// 	reqBody, err := ioutil.ReadAll(r.Body)
-// 	if err != nil {
-// 		fmt.Fprintf(w, "Kindly enter data properly")
-// 	}
-// 	json.Unmarshal(reqBody, &UpdateUser)
-	
-// 	err = Session.Query("UPDATE users SET email = ? WHERE id = ?", UpdateUser.Email, UserID).Exec();
-// 	if err != nil {
-// 		fmt.Println("Error while updating")
-// 		fmt.Println(err)
-// 	}
-// 	fmt.Fprintf(w, "updated successfully")
-
-// }

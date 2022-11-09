@@ -26,7 +26,14 @@ func (book *OrderBook) processLimitBuy(order Order) []Trade {
 			}
 			// fill the entire order
 			if sellOrder.Amount >= order.Amount {
-				trades = append(trades, Trade{order.ID, sellOrder.ID, order.Amount, sellOrder.Price})
+				trades = append(trades, Trade{
+					TakerOrderId: 	order.Id,
+					TakerUserId: 	order.UserId,
+					MakerOrderId: 	sellOrder.Id,
+					MakerUserId:	sellOrder.UserId,
+					Amount: 		order.Amount,
+					Price: 			sellOrder.Price,
+				})
 				sellOrder.Amount -= order.Amount
 				if sellOrder.Amount == 0 {
 					book.removeSellOrder(i)
@@ -35,7 +42,14 @@ func (book *OrderBook) processLimitBuy(order Order) []Trade {
 			}
 			// fill a partial order and continue
 			if sellOrder.Amount < order.Amount {
-				trades = append(trades, Trade{order.ID, sellOrder.ID, sellOrder.Amount, sellOrder.Price})
+				trades = append(trades, Trade{
+					TakerOrderId: 	order.Id,
+					TakerUserId: 	order.UserId,
+					MakerOrderId: 	sellOrder.Id,
+					MakerUserId: 	sellOrder.UserId,
+					Amount:			sellOrder.Amount,
+					Price:			sellOrder.Price,
+				})
 				order.Amount -= sellOrder.Amount
 				book.removeSellOrder(i)
 				continue
@@ -52,27 +66,25 @@ func (book *OrderBook) processLimitSell(order Order) []Trade {
 	trades := make([]Trade, 0, 1)
 	n := len(book.BuyOrders)
 
-	// log.Println("book.BuyOrders[n-1].Price", book.BuyOrders[n-1].Price)
-	// log.Println("order.Price", order.Price)
-
 	// check if we have at least one matching order
 	if n != 0 && book.BuyOrders[n-1].Price >= order.Price {
 		// traverse all orders that match
 		for i := n - 1; i >= 0; i-- {
 			buyOrder := &book.BuyOrders[i]
-			
-			
-			// log.Println("buyOrder.Price", buyOrder.Price)
-			// log.Println("order.Price", order.Price)
-
 			if buyOrder.Price < order.Price {
 				break
 			}
 
 			// fill the entire order
 			if buyOrder.Amount >= order.Amount {
-				trades = append(trades, Trade{order.ID, buyOrder.ID, order.Amount, buyOrder.Price})
-				// buyOrder.Amount -= order.Amount
+				trades = append(trades, Trade{
+					TakerOrderId: order.Id, 
+					TakerUserId: order.UserId,
+					MakerOrderId: buyOrder.Id,
+					MakerUserId: buyOrder.UserId,
+					Amount: order.Amount,
+					Price: buyOrder.Price,
+				})
 				buyOrder.Amount -= order.Amount
 				
 				if buyOrder.Amount == 0 {
@@ -83,7 +95,14 @@ func (book *OrderBook) processLimitSell(order Order) []Trade {
 			}
 			// fill a partial order and continue
 			if buyOrder.Amount < order.Amount {
-				trades = append(trades, Trade{order.ID, buyOrder.ID, buyOrder.Amount, buyOrder.Price})
+				trades = append(trades, Trade{
+					TakerOrderId: order.Id,
+					TakerUserId: order.UserId,
+					MakerOrderId: buyOrder.Id,
+					MakerUserId: buyOrder.UserId,
+					Amount: buyOrder.Amount,
+					Price: buyOrder.Price,
+				})
 				order.Amount -= buyOrder.Amount
 				book.removeBuyOrder(i)
 				continue

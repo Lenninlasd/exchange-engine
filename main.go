@@ -17,11 +17,11 @@ var OrderBook = engine.OrderBook{
 }
 
 // var bookStreamList = []engine.Order{
-// 	{Amount: 100, Price: 105, ID: "lennin0", Side: 1, UserId: "zener"},
-// 	{Amount: 50, Price: 105, ID: "lennin1", Side: 0 },
-// 	{Amount: 20, Price: 105, ID: "lennin2", Side: 0 },
-// 	{Amount: 200, Price: 110, ID: "lennin3", Side: 0 },
-// 	{Amount: 300, Price: 115, ID: "lennin4", Side: 1 },
+// 	{Amount: 100, Price: 105, Id: "lennin0", Side: 1, UserId: "zener"},
+// 	{Amount: 50, Price: 105, Id: "lennin1", Side: 0 },
+// 	{Amount: 20, Price: 105, Id: "lennin2", Side: 0 },
+// 	{Amount: 200, Price: 110, Id: "lennin3", Side: 0 },
+// 	{Amount: 300, Price: 115, Id: "lennin4", Side: 1 },
 // }
 
 // func handleRequests() {

@@ -6,7 +6,7 @@ import (
 )
 
 type Order struct {
-	ID     gocql.UUID	`json:"id"`
+	Id     gocql.UUID	`json:"id"`
 	UserId gocql.UUID	`json:"user_id"`
 	Amount float64		`json:"amount"`
 	Price  float64		`json:"price"`

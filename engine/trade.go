@@ -6,8 +6,10 @@ import (
 )
 
 type Trade struct {
-	TakerOrderID gocql.UUID `json:"taker_order_id"`
-	MakerOrderID gocql.UUID `json:"maker_order_id"`
+	TakerUserId		gocql.UUID `json:"taker_user_id"`
+	TakerOrderId 	gocql.UUID `json:"taker_order_id"`
+	MakerOrderId 	gocql.UUID `json:"maker_order_id"`
+	MakerUserId		gocql.UUID `json:"maker_user_id"`
 	Amount       float64 	`json:"amount"`
 	Price        float64 	`json:"price"`
 }
