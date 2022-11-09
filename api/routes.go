@@ -22,6 +22,7 @@ func Routes() {
 	router.HandleFunc("/balances", GetAllBalances).Methods("GET")
 	router.HandleFunc("/createbalance", CreateBalance).Methods("POST")
 
+	router.HandleFunc("/orderbook", GetOrderBook).Methods("GET")
 	router.HandleFunc("/createOrder", CreateOrder).Methods("POST")
 
 	headers := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})

@@ -17,6 +17,11 @@ var OrderBook = engine.OrderBook{
 	SellOrders: make([]engine.Order, 0, 100),
 }
 
+func GetOrderBook(w http.ResponseWriter, r *http.Request) {
+	Conv, _ := json.MarshalIndent(OrderBook, "", " ")
+	fmt.Fprintf(w, "%s", string(Conv))
+}
+
 func CreateMakerTakerBalances(
 	takerId gocql.UUID,
 	makerId gocql.UUID,
@@ -55,19 +60,18 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
  
 	trades := OrderBook.Process(NewOrder)
 
-	if len(trades) == 1 {
-		makerUserBalance := GetUserBalance(trades[0].MakerUserId)
-		
-		var newTakerAmount float64
+	var newTakerAmount = userBalance[0].Amount
+
+	for _, trade := range trades {
 		var newMakerAmount float64
+		makerUserBalance := GetUserBalance(trade.MakerUserId)
 
 		if NewOrder.Side == 1 {
-			newTakerAmount = userBalance[0].Amount + trades[0].Amount
-			newMakerAmount = makerUserBalance[0].Amount - trades[0].Amount
-
+			newTakerAmount = newTakerAmount + trade.Amount
+			newMakerAmount = makerUserBalance[0].Amount - trade.Amount
 		} else {
-			newTakerAmount = userBalance[0].Amount - trades[0].Amount
-			newMakerAmount = makerUserBalance[0].Amount + trades[0].Amount
+			newTakerAmount = newTakerAmount - trade.Amount
+			newMakerAmount = makerUserBalance[0].Amount + trade.Amount
 		}
 
 		err = CreateMakerTakerBalances(
@@ -76,6 +80,10 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
 			newTakerAmount,
 			newMakerAmount,
 		)
+
+		if err != nil {
+			break
+		}
 	}
 
 	if err != nil {
