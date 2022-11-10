@@ -35,6 +35,24 @@ func CreateMakerTakerBalances(
 		APPLY BATCH`, takerId, newTakerAmount, makerId, newMakerAmount).Exec()
 }
 
+func GetUserAmountInExistingOrder(userId gocql.UUID, side int8) float64 {
+	var orders []engine.Order
+	if side == 1 {
+		orders = OrderBook.BuyOrders
+	} else {
+		orders = OrderBook.SellOrders
+	}
+
+	var existingAmount float64 = 0
+	for _, order := range orders {
+		if order.UserId == userId {
+			existingAmount += order.Amount
+		}
+	}
+
+	return existingAmount
+}
+
 func CreateOrder(w http.ResponseWriter, r *http.Request) {
 	var NewOrder engine.Order
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -44,15 +62,17 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	NewOrder.FromJSON(reqBody)
 	NewOrder.Id = gocql.TimeUUID()
-	userBalance := GetUserBalance(NewOrder.UserId)
-
+	
 	if NewOrder.Amount < MIN_AMOUNT {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "The minimum amount should be greater than %s", fmt.Sprintf("%v", MIN_AMOUNT))
 		return
 	}
+	
+	userBalance := GetUserBalance(NewOrder.UserId)
+	userExistingOrderAmount := GetUserAmountInExistingOrder(NewOrder.UserId, NewOrder.Side)
 
-	if len(userBalance) == 0 || userBalance[0].Amount <=  NewOrder.Amount {
+	if NewOrder.Side != 1 && (len(userBalance) == 0 || userBalance[0].Amount - userExistingOrderAmount <  NewOrder.Amount) {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "%s", "There is not enough balance in your account")
 		return
