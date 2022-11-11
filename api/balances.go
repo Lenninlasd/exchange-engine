@@ -43,11 +43,11 @@ func CreateBalance(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", string(Conv))
 }
 
-func GetUserBalance(UserId gocql.UUID) []types.Balance {
+func GetUserBalance(UserId gocql.UUID, tokenType string) []types.Balance {
 	var balances []types.Balance
 	m := map[string]interface{}{}
 
-	iter := Session.Query("SELECT * FROM BTCbalances WHERE user_id=? ORDER BY time_stamp DESC LIMIT 1", UserId).Iter()
+	iter := Session.Query("SELECT * FROM " + tokenType + "balances WHERE user_id=? ORDER BY time_stamp DESC LIMIT 1", UserId).Iter()
 	for iter.MapScan(m) {
 		balances = append(balances, types.Balance{
 			UserId:		m["user_id"].(gocql.UUID),
@@ -89,7 +89,7 @@ func GetUserBalanceFromHttp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	balances := GetUserBalance(Useruuid)
+	balances := GetUserBalance(Useruuid, "BTC")
 
 	Conv, _ := json.MarshalIndent(balances, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
@@ -104,16 +104,6 @@ func CountAllBalances(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s ", Count)
 
 }
-
-// func DeleteUserBalances(w http.ResponseWriter, r *http.Request) {
-// 	UserId := mux.Vars(r)["id"]
-// 	err := Session.Query("DELETE FROM BTCbalances WHERE user_id = ?", UserId).Exec();
-// 	if err != nil {
-// 		fmt.Println("Error while deleting")
-// 		fmt.Println(err)
-// 	}
-// 	fmt.Fprintf(w, "deleted successfully the balance num %s ", UserId)
-// }
 
 func DeleteAllBalances(w http.ResponseWriter, r *http.Request) {
 	err := Session.Query("TRUNCATE BTCbalances").Exec();

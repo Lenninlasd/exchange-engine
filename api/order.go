@@ -3,10 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"github.com/gocql/gocql"
 	"github.com/lenninlasd/TradingEngine/engine"
+	"github.com/lenninlasd/TradingEngine/types"
 )
 
 var MIN_AMOUNT float64 = 0.001
@@ -45,12 +47,40 @@ func GetUserAmountInExistingOrder(userId gocql.UUID, side int8) float64 {
 
 	var existingAmount float64 = 0
 	for _, order := range orders {
-		if order.UserId == userId {
-			existingAmount += order.Amount
+		if order.UserId != userId {
+			continue
 		}
+
+		if side == 1 {
+			existingAmount += order.Amount * order.Price
+			continue
+		}
+		existingAmount += order.Amount
 	}
 
 	return existingAmount
+}
+
+func CheckEnoughBalance(order engine.Order) (types.Balance,  types.Balance, error) {
+	userExistingOrderAmount := GetUserAmountInExistingOrder(order.UserId, order.Side)
+
+	userBTCBalance := GetUserBalance(order.UserId, "BTC")
+	userUSDTBalance := GetUserBalance(order.UserId, "USDT")
+
+	err := errors.New("There is not enough balance in your account")
+
+	if order.Side == 1 {
+	 	// userBalance amount(USDT) - userExistingOrderAmount in USDT < Amount(BTC)*Price(USD/BTC)
+		hasEnoughBalance := userUSDTBalance[0].Amount - userExistingOrderAmount >=  order.Amount * order.Price
+		if len(userUSDTBalance) == 0 || !hasEnoughBalance {
+			return types.Balance{}, types.Balance{}, err
+		}
+	} else {
+		if len(userBTCBalance) == 0 || (userBTCBalance[0].Amount - userExistingOrderAmount <  order.Amount) {
+			return types.Balance{}, types.Balance{}, err
+		}
+	}
+	return userBTCBalance[0], userUSDTBalance[0], nil
 }
 
 func CreateOrder(w http.ResponseWriter, r *http.Request) {
@@ -62,29 +92,27 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	NewOrder.FromJSON(reqBody)
 	NewOrder.Id = gocql.TimeUUID()
-	
+
 	if NewOrder.Amount < MIN_AMOUNT {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "The minimum amount should be greater than %s", fmt.Sprintf("%v", MIN_AMOUNT))
 		return
 	}
-	
-	userBalance := GetUserBalance(NewOrder.UserId)
-	userExistingOrderAmount := GetUserAmountInExistingOrder(NewOrder.UserId, NewOrder.Side)
 
-	if NewOrder.Side != 1 && (len(userBalance) == 0 || userBalance[0].Amount - userExistingOrderAmount <  NewOrder.Amount) {
+	userBTCBalance, _, err := CheckEnoughBalance(NewOrder)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "%s", "There is not enough balance in your account")
+		fmt.Fprintf(w, "%s", err)
 		return
 	}
  
 	trades := OrderBook.Process(NewOrder)
 
-	var newTakerAmount = userBalance[0].Amount
+	var newTakerAmount = userBTCBalance.Amount
 
 	for _, trade := range trades {
 		var newMakerAmount float64
-		makerUserBalance := GetUserBalance(trade.MakerUserId)
+		makerUserBalance := GetUserBalance(trade.MakerUserId, "BTC")
 
 		if NewOrder.Side == 1 {
 			newTakerAmount = newTakerAmount + trade.Amount
