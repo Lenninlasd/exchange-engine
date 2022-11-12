@@ -24,17 +24,23 @@ func GetOrderBook(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", string(Conv))
 }
 
-func CreateMakerTakerBalances(
-	takerId gocql.UUID,
-	makerId gocql.UUID,
-	newTakerAmount float64,
-	newMakerAmount float64,
-) error {
+func CreateMakerTakerBalances(Taker types.UserBalances, Maker types.UserBalances) error {
 	return Session.Query(
 		`BEGIN BATCH 
 			INSERT INTO BTCbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)
+			INSERT INTO USDTbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)
 			INSERT INTO BTCbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)
-		APPLY BATCH`, takerId, newTakerAmount, makerId, newMakerAmount).Exec()
+			INSERT INTO USDTbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)
+		APPLY BATCH`,
+		Taker.Id,
+		Taker.Amount,
+		Taker.Id,
+		Taker.AmountUSDT,
+		Maker.Id,
+		Maker.Amount,
+		Maker.Id,
+		Maker.AmountUSDT,
+	).Exec()
 }
 
 func GetUserAmountInExistingOrder(userId gocql.UUID, side int8) float64 {
@@ -63,24 +69,23 @@ func GetUserAmountInExistingOrder(userId gocql.UUID, side int8) float64 {
 
 func CheckEnoughBalance(order engine.Order) (types.Balance,  types.Balance, error) {
 	userExistingOrderAmount := GetUserAmountInExistingOrder(order.UserId, order.Side)
-
-	userBTCBalance := GetUserBalance(order.UserId, "BTC")
-	userUSDTBalance := GetUserBalance(order.UserId, "USDT")
+	userBalanceBTC := GetUserBalance(order.UserId, "BTC")
+	userBalanceUSDT := GetUserBalance(order.UserId, "USDT")
 
 	err := errors.New("There is not enough balance in your account")
 
 	if order.Side == 1 {
 	 	// userBalance amount(USDT) - userExistingOrderAmount in USDT < Amount(BTC)*Price(USD/BTC)
-		hasEnoughBalance := userUSDTBalance[0].Amount - userExistingOrderAmount >=  order.Amount * order.Price
-		if len(userUSDTBalance) == 0 || !hasEnoughBalance {
+		hasEnoughBalance := userBalanceUSDT.Amount - userExistingOrderAmount >=  order.Amount * order.Price
+		if !hasEnoughBalance {
 			return types.Balance{}, types.Balance{}, err
 		}
 	} else {
-		if len(userBTCBalance) == 0 || (userBTCBalance[0].Amount - userExistingOrderAmount <  order.Amount) {
+		if userBalanceBTC.Amount - userExistingOrderAmount <  order.Amount {
 			return types.Balance{}, types.Balance{}, err
 		}
 	}
-	return userBTCBalance[0], userUSDTBalance[0], nil
+	return userBalanceBTC, userBalanceUSDT, nil
 }
 
 func CreateOrder(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +104,9 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userBTCBalance, _, err := CheckEnoughBalance(NewOrder)
+	userBalanceBTC, userBalanceUSDT, err := CheckEnoughBalance(NewOrder)
+
+	fmt.Println("userBalanceUSDT", userBalanceUSDT)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "%s", err)
@@ -108,27 +115,41 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
  
 	trades := OrderBook.Process(NewOrder)
 
-	var newTakerAmount = userBTCBalance.Amount
-
+	var newTakerAmount = userBalanceBTC.Amount
+	var newTakerAmountUSDT = userBalanceUSDT.Amount
+// print userBalanceBTC
 	for _, trade := range trades {
 		var newMakerAmount float64
+		var newMakerAmountUSDT float64
 		makerUserBalance := GetUserBalance(trade.MakerUserId, "BTC")
+		makerUserBalanceUSDT := GetUserBalance(trade.MakerUserId, "USDT")
 
 		if NewOrder.Side == 1 {
 			newTakerAmount = newTakerAmount + trade.Amount
-			newMakerAmount = makerUserBalance[0].Amount - trade.Amount
+			newTakerAmountUSDT = newTakerAmountUSDT - trade.Amount * trade.Price
+
+			newMakerAmount = makerUserBalance.Amount - trade.Amount
+			newMakerAmountUSDT = makerUserBalanceUSDT.Amount + trade.Amount * trade.Price
 		} else {
 			newTakerAmount = newTakerAmount - trade.Amount
-			newMakerAmount = makerUserBalance[0].Amount + trade.Amount
+			newTakerAmountUSDT = newTakerAmountUSDT + trade.Amount * trade.Price
+			
+			newMakerAmount = makerUserBalance.Amount + trade.Amount
+			newMakerAmountUSDT = makerUserBalanceUSDT.Amount - trade.Amount * trade.Price
 		}
 
-		err = CreateMakerTakerBalances(
-			NewOrder.UserId,
-			makerUserBalance[0].UserId,
-			newTakerAmount,
-			newMakerAmount,
-		)
+		takerBTC := types.UserBalances{
+			Id: NewOrder.UserId,
+			Amount: newTakerAmount,
+			AmountUSDT: newTakerAmountUSDT,
+		}
+		makerUSDT := types.UserBalances{
+			Id: makerUserBalance.UserId,
+			Amount: newMakerAmount,
+			AmountUSDT: newMakerAmountUSDT,
+		}
 
+		err = CreateMakerTakerBalances(takerBTC, makerUSDT)
 		if err != nil {
 			break
 		}

@@ -20,3 +20,10 @@ func (balance *Balance) ToJSON() []byte {
 	str, _ := json.Marshal(balance)
 	return str
 }
+
+
+type UserBalances struct {
+	Id		gocql.UUID
+	Amount		float64
+	AmountUSDT	float64
+}

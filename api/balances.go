@@ -43,7 +43,7 @@ func CreateBalance(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", string(Conv))
 }
 
-func GetUserBalance(UserId gocql.UUID, tokenType string) []types.Balance {
+func GetUserBalance(UserId gocql.UUID, tokenType string) types.Balance {
 	var balances []types.Balance
 	m := map[string]interface{}{}
 
@@ -57,7 +57,13 @@ func GetUserBalance(UserId gocql.UUID, tokenType string) []types.Balance {
 		m = map[string]interface{}{}
 	}
 
-	return balances
+	if len(balances) > 0 {
+		return balances[0]
+	}
+
+	return types.Balance{
+		UserId: UserId,
+	}
 }
 
 func GetAllBalances(w http.ResponseWriter, r *http.Request) {
