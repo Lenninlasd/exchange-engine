@@ -24,22 +24,21 @@ func GetOrderBook(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", string(Conv))
 }
 
-func CreateMakerTakerBalances(Taker types.UserBalances, Maker types.UserBalances) error {
+func CreateMakerTakerBalances(Taker types.UserBalances, Maker types.UserBalances, Trade engine.Trade) error {
 	return Session.Query(
 		`BEGIN BATCH 
 			INSERT INTO BTCbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)
 			INSERT INTO USDTbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)
 			INSERT INTO BTCbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)
 			INSERT INTO USDTbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)
+			INSERT INTO Trades (taker_order_id, maker_order_id, taker_user_id, maker_user_id, amount, price, time_stamp)
+				VALUES (?, ?, ?, ?, ?, ?, toTimeStamp(now()))
 		APPLY BATCH`,
-		Taker.Id,
-		Taker.Amount,
-		Taker.Id,
-		Taker.AmountUSDT,
-		Maker.Id,
-		Maker.Amount,
-		Maker.Id,
-		Maker.AmountUSDT,
+		Taker.Id, Taker.Amount,
+		Taker.Id, Taker.AmountUSDT,
+		Maker.Id, Maker.Amount,
+		Maker.Id, Maker.AmountUSDT,
+		Trade.TakerOrderId, Trade.MakerOrderId, Trade.TakerUserId, Trade.MakerUserId, Trade.Amount, Trade.Price,
 	).Exec()
 }
 
@@ -106,7 +105,6 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	userBalanceBTC, userBalanceUSDT, err := CheckEnoughBalance(NewOrder)
 
-	fmt.Println("userBalanceUSDT", userBalanceUSDT)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "%s", err)
@@ -117,7 +115,7 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	var newTakerAmount = userBalanceBTC.Amount
 	var newTakerAmountUSDT = userBalanceUSDT.Amount
-// print userBalanceBTC
+
 	for _, trade := range trades {
 		var newMakerAmount float64
 		var newMakerAmountUSDT float64
@@ -149,7 +147,7 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
 			AmountUSDT: newMakerAmountUSDT,
 		}
 
-		err = CreateMakerTakerBalances(takerBTC, makerUSDT)
+		err = CreateMakerTakerBalances(takerBTC, makerUSDT, trade)
 		if err != nil {
 			break
 		}
