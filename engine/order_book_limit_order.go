@@ -21,9 +21,17 @@ func (book *OrderBook) processLimitBuy(order Order) []Trade {
 		// traverse all orders that match
 		for i := n - 1; i >= 0; i-- {
 			sellOrder := &book.SellOrders[i]
+
+			// Orderbook is sorted non of the remaining order are lower
 			if sellOrder.Price > order.Price {
 				break
 			}
+
+			// ⚠️ A user must not buy its own order.
+			if sellOrder.UserId == order.UserId {
+				continue
+			}
+
 			// fill the entire order
 			if sellOrder.Amount >= order.Amount {
 				trades = append(trades, Trade{
