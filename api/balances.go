@@ -9,7 +9,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/gorilla/mux"
 
-	"github.com/lenninlasd/TradingEngine/types"
+	"github.com/lenninlasd/Engine/types"
 )
 
 func CreateBalance(w http.ResponseWriter, r *http.Request) {

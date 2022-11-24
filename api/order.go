@@ -7,8 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"github.com/gocql/gocql"
-	"github.com/lenninlasd/TradingEngine/engine"
-	"github.com/lenninlasd/TradingEngine/types"
+	"github.com/lenninlasd/Engine/engine"
+	"github.com/lenninlasd/Engine/types"
 )
 
 var MIN_AMOUNT float64 = 0.001

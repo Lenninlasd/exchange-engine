@@ -6,8 +6,8 @@ import (
 	// "encoding/json"
 	// "net/http"
 
-	"github.com/lenninlasd/TradingEngine/engine"
-	"github.com/lenninlasd/TradingEngine/api"
+	"github.com/lenninlasd/Engine/engine"
+	"github.com/lenninlasd/Engine/api"
 )
 
 // create the order book

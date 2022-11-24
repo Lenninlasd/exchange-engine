@@ -1,4 +1,4 @@
-module github.com/lenninlasd/TradingEngine
+module github.com/lenninlasd/Engine
 
 go 1.18
 

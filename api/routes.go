@@ -28,6 +28,6 @@ func Routes() {
 	headers := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	methods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"})
 	origins := handlers.AllowedOrigins([]string{"*"})
-	log.Fatal(http.ListenAndServe(":3000", handlers.CORS(headers, methods, origins)(router)))
+	log.Fatal(http.ListenAndServe(":8080", handlers.CORS(headers, methods, origins)(router)))
 
 }
