@@ -25,9 +25,16 @@ func Routes() {
 	router.HandleFunc("/orderbook", GetOrderBook).Methods("GET")
 	router.HandleFunc("/createOrder", CreateOrder).Methods("POST")
 
-	headers := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
+	headers := handlers.AllowedHeaders([]string{
+		"X-Requested-With",
+		"Content-Type",
+		"Authorization",
+	})
 	methods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"})
-	origins := handlers.AllowedOrigins([]string{"*"})
+	origins := handlers.AllowedOrigins([]string{
+		"http://localhost:3000",
+		"https://zener-fe.vercel.app",
+	})
 	log.Fatal(http.ListenAndServe(":8080", handlers.CORS(headers, methods, origins)(router)))
 
 }
