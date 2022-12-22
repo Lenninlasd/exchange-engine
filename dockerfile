@@ -9,6 +9,8 @@ RUN go mod download
 
 COPY . .
 
+ENV DB_HOST cassandra
+
 RUN go build -o ../dist
 
 WORKDIR $GOPATH/src/github.com/lenninlasd/engine
