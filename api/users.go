@@ -12,10 +12,11 @@ import (
 )
 
 func homeLink(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Restful API using Go and Cassandra!")
+	fmt.Fprintf(w, "Restful API using Go and Postgres!")
 }
 
 func CreateUser(w http.ResponseWriter, r *http.Request) {
+	db := OpenConnection()
 	var NewUser types.User
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -24,45 +25,49 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	NewUser.FromJSON(reqBody)
 
-	err = Session.Query("INSERT INTO users(id, email) VALUES(uuid(), ?)", NewUser.Email).Exec(); 
+	_, err = db.Exec(`INSERT INTO users (email) VALUES ($1)`, NewUser.Email)
 	if err != nil {
-		fmt.Println("Error while inserting")
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-
-		return
+		w.WriteHeader(http.StatusBadRequest)
+		panic(err)
 	}
+
 	w.WriteHeader(http.StatusCreated)
 	Conv, _ := json.MarshalIndent(NewUser, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
+	defer db.Close()
 }
 
 func GetAllUsers(w http.ResponseWriter, r *http.Request) {
-	var users []types.User
-	m := map[string]interface{}{}
+	db := OpenConnection()
 
-	iter := Session.Query("SELECT * FROM users").Iter()
-	for iter.MapScan(m) {
-		users = append(users, types.User{
-			Id:		m["id"].(gocql.UUID),
-			Email:	m["email"].(string),
-		})
-		m = map[string]interface{}{}
+	rows, err := db.Query("SELECT * FROM users")
+	if err != nil {
+		panic(err)
+	}
+
+	var users []types.User
+	for rows.Next() {
+		var user types.User
+		err := rows.Scan(&user.Id, &user.Email)
+		CheckError(err)
+		users = append(users, user)
 	}
 
 	Conv, _ := json.MarshalIndent(users, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
 
+	defer rows.Close()
+	defer db.Close()
 }
 
 func GetOneUser(w http.ResponseWriter, r *http.Request) {
 	UserId := mux.Vars(r)["id"]
-	var users []types.User
+	var users []types.UserC
 	m := map[string]interface{}{}
 
 	iter := Session.Query("SELECT * FROM users WHERE id=?", UserId).Iter()
 	for iter.MapScan(m) {
-		users = append(users, types.User{
+		users = append(users, types.UserC{
 			Id:		m["id"].(gocql.UUID),
 			Email:	m["email"].(string),
 		})
