@@ -1,121 +1,143 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
-	"io/ioutil"
 	"net/http"
-	"github.com/gocql/gocql"
-	"github.com/gorilla/mux"
 
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/lenninlasd/Engine/types"
 )
 
-func CreateBalance(w http.ResponseWriter, r *http.Request) {
-	var NewBalance types.Balance
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintf(w, "wrong data")
-	}
+// func CreateBalance(w http.ResponseWriter, r *http.Request) {
+// 	var NewBalance types.Balance
+// 	reqBody, err := ioutil.ReadAll(r.Body)
+// 	if err != nil {
+// 		fmt.Fprintf(w, "wrong data")
+// 	}
 
-	NewBalance.FromJSON(reqBody)
+// 	NewBalance.FromJSON(reqBody)
 
-	hasUser := ExistUser(NewBalance.UserId)
+// 	hasUser := ExistUser(NewBalance.UserId)
 
-	if !hasUser {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "%s", "User do not exist")
-		return
-	}
+// 	if !hasUser {
+// 		w.WriteHeader(http.StatusBadRequest)
+// 		fmt.Fprintf(w, "%s", "User do not exist")
+// 		return
+// 	}
 
-	err = Session.Query("INSERT INTO BTCbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)",
-		NewBalance.UserId, NewBalance.Amount).Exec();
+// 	err = Session.Query("INSERT INTO BTCbalances(user_id, time_stamp, amount) VALUES(?, toTimeStamp(now()), ?)",
+// 		NewBalance.UserId, NewBalance.Amount).Exec();
 
-	if err != nil {
-		fmt.Println("Error while inserting")
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-	Conv, _ := json.MarshalIndent(NewBalance, "", " ")
-	fmt.Fprintf(w, "%s", string(Conv))
-}
+// 	if err != nil {
+// 		fmt.Println("Error while inserting")
+// 		fmt.Println(err)
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		return
+// 	}
+// 	w.WriteHeader(http.StatusCreated)
+// 	Conv, _ := json.MarshalIndent(NewBalance, "", " ")
+// 	fmt.Fprintf(w, "%s", string(Conv))
+// }
 
-func GetUserBalance(UserId gocql.UUID, tokenType string) types.Balance {
-	var balances []types.Balance
-	m := map[string]interface{}{}
+func GetUserBalance(UserId uuid.UUID) (types.Balance, error) {
+	db := OpenConnection()
+	var balance types.Balance
 
-	iter := Session.Query("SELECT * FROM " + tokenType + "balances WHERE user_id=? ORDER BY time_stamp DESC LIMIT 1", UserId).Iter()
-	for iter.MapScan(m) {
-		balances = append(balances, types.Balance{
-			UserId:		m["user_id"].(gocql.UUID),
-			Timestamp:	m["time_stamp"].(time.Time),
-			Amount:		m["amount"].(float64),
-		})
-		m = map[string]interface{}{}
-	}
+	err := db.QueryRow("SELECT * FROM btcbalances WHERE user_id=$1 LIMIT 1", UserId).Scan(&balance.UserId, &balance.Amount, &balance.Timestamp)
 
-	if len(balances) > 0 {
-		return balances[0]
-	}
+	defer db.Close()
 
-	return types.Balance{
-		UserId: UserId,
-	}
-}
-
-func GetAllBalances(w http.ResponseWriter, r *http.Request) {
-	var balances []types.Balance
-	m := map[string]interface{}{}
-
-	iter := Session.Query("SELECT * FROM BTCbalances").Iter()
-	for iter.MapScan(m) {
-		balances = append(balances, types.Balance{
-			UserId:		m["user_id"].(gocql.UUID),
-			Timestamp:	m["time_stamp"].(time.Time),
-			Amount:		m["amount"].(float64),
-		})
-		m = map[string]interface{}{}
-	}
-
-	Conv, _ := json.MarshalIndent(balances, "", " ")
-	fmt.Fprintf(w, "%s", string(Conv))
+	return balance, err
 }
 
 func GetUserBalanceFromHttp(w http.ResponseWriter, r *http.Request) {
 	UserId := mux.Vars(r)["id"]
-	
-	Useruuid, err := gocql.ParseUUID(UserId)
+
+	Useruuid, err := uuid.Parse(UserId)
 
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "%s", "User do not exist")
+		userNotExist(w)
 		return
 	}
 
-	balances := GetUserBalance(Useruuid, "BTC")
+	balance, err := GetUserBalance(Useruuid)
 
-	Conv, _ := json.MarshalIndent(balances, "", " ")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			userNotExist(w)
+			return
+		}
+		panic(err)
+	}
+
+	Conv, _ := json.MarshalIndent(balance, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
 }
 
-func CountAllBalances(w http.ResponseWriter, r *http.Request) {
-	var Count string
-	err := Session.Query("SELECT count(*) FROM BTCbalances").Scan(&Count)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Fprintf(w, "%s ", Count)
-
+func userNotExist(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprintf(w, "%s", "User do not exist")
 }
 
-func DeleteAllBalances(w http.ResponseWriter, r *http.Request) {
-	err := Session.Query("TRUNCATE BTCbalances").Exec();
-	if err != nil {
-		fmt.Println("Error while deleting all BTCbalances")
-		fmt.Println(err)
-	}
-	fmt.Fprintf(w, "deleted all successfully")
-}
+// func GetUserBalance(UserId gocql.UUID, tokenType string) types.Balance {
+// 	var balances []types.Balance
+// 	m := map[string]interface{}{}
+
+// 	iter := Session.Query("SELECT * FROM " + tokenType + "balances WHERE user_id=? ORDER BY time_stamp DESC LIMIT 1", UserId).Iter()
+// 	for iter.MapScan(m) {
+// 		balances = append(balances, types.Balance{
+// 			UserId:		m["user_id"].(gocql.UUID),
+// 			Timestamp:	m["time_stamp"].(time.Time),
+// 			Amount:		m["amount"].(float64),
+// 		})
+// 		m = map[string]interface{}{}
+// 	}
+
+// 	if len(balances) > 0 {
+// 		return balances[0]
+// 	}
+
+// 	return types.Balance{
+// 		UserId: UserId,
+// 	}
+// }
+
+// func GetAllBalances(w http.ResponseWriter, r *http.Request) {
+// 	var balances []types.Balance
+// 	m := map[string]interface{}{}
+
+// 	iter := Session.Query("SELECT * FROM BTCbalances").Iter()
+// 	for iter.MapScan(m) {
+// 		balances = append(balances, types.Balance{
+// 			UserId:		m["user_id"].(gocql.UUID),
+// 			Timestamp:	m["time_stamp"].(time.Time),
+// 			Amount:		m["amount"].(float64),
+// 		})
+// 		m = map[string]interface{}{}
+// 	}
+
+// 	Conv, _ := json.MarshalIndent(balances, "", " ")
+// 	fmt.Fprintf(w, "%s", string(Conv))
+// }
+
+// func CountAllBalances(w http.ResponseWriter, r *http.Request) {
+// 	var Count string
+// 	err := Session.Query("SELECT count(*) FROM BTCbalances").Scan(&Count)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	fmt.Fprintf(w, "%s ", Count)
+
+// }
+
+// func DeleteAllBalances(w http.ResponseWriter, r *http.Request) {
+// 	err := Session.Query("TRUNCATE BTCbalances").Exec()
+// 	if err != nil {
+// 		fmt.Println("Error while deleting all BTCbalances")
+// 		fmt.Println(err)
+// 	}
+// 	fmt.Fprintf(w, "deleted all successfully")
+// }

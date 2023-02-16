@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"github.com/gocql/gocql"
-
-	"github.com/gorilla/mux"
+	// "github.com/gorilla/mux"
 	"github.com/lenninlasd/Engine/types"
 )
 
@@ -60,78 +58,78 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 }
 
-func GetOneUser(w http.ResponseWriter, r *http.Request) {
-	UserId := mux.Vars(r)["id"]
-	var users []types.UserC
-	m := map[string]interface{}{}
+// func GetOneUser(w http.ResponseWriter, r *http.Request) {
+// 	UserId := mux.Vars(r)["id"]
+// 	var users []types.UserC
+// 	m := map[string]interface{}{}
 
-	iter := Session.Query("SELECT * FROM users WHERE id=?", UserId).Iter()
-	for iter.MapScan(m) {
-		users = append(users, types.UserC{
-			Id:		m["id"].(gocql.UUID),
-			Email:	m["email"].(string),
-		})
-		m = map[string]interface{}{}
-	}
+// 	iter := Session.Query("SELECT * FROM users WHERE id=?", UserId).Iter()
+// 	for iter.MapScan(m) {
+// 		users = append(users, types.UserC{
+// 			Id:		m["id"].(gocql.UUID),
+// 			Email:	m["email"].(string),
+// 		})
+// 		m = map[string]interface{}{}
+// 	}
 
-	Conv, _ := json.MarshalIndent(users, "", " ")
-	fmt.Fprintf(w, "%s", string(Conv))
+// 	Conv, _ := json.MarshalIndent(users, "", " ")
+// 	fmt.Fprintf(w, "%s", string(Conv))
 
-}
+// }
 
-func ExistUser(UserId gocql.UUID) bool {
-	var Count int
-	err := Session.Query("SELECT count(*) FROM users WHERE id=?", UserId).Scan(&Count)
-	if err != nil {
-		panic(err)
-	}
-	return Count == 1
-}
+// func ExistUser(UserId gocql.UUID) bool {
+// 	var Count int
+// 	err := Session.Query("SELECT count(*) FROM users WHERE id=?", UserId).Scan(&Count)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	return Count == 1
+// }
 
-func CountAllUsers(w http.ResponseWriter, r *http.Request) {
+// func CountAllUsers(w http.ResponseWriter, r *http.Request) {
 
-	var Count string
-	err := Session.Query("SELECT count(*) FROM users").Scan(&Count)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Fprintf(w, "%s ", Count)
+// 	var Count string
+// 	err := Session.Query("SELECT count(*) FROM users").Scan(&Count)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	fmt.Fprintf(w, "%s ", Count)
 
-}
-func DeleteOneUser(w http.ResponseWriter, r *http.Request) {
-	UserId := mux.Vars(r)["id"]
-	err := Session.Query("DELETE FROM users WHERE id = ?", UserId).Exec();
-	if err != nil {
-		fmt.Println("Error while deleting")
-		fmt.Println(err)
-	}
-	fmt.Fprintf(w, "deleted successfully the user num %s ", UserId)
-}
+// }
+// func DeleteOneUser(w http.ResponseWriter, r *http.Request) {
+// 	UserId := mux.Vars(r)["id"]
+// 	err := Session.Query("DELETE FROM users WHERE id = ?", UserId).Exec();
+// 	if err != nil {
+// 		fmt.Println("Error while deleting")
+// 		fmt.Println(err)
+// 	}
+// 	fmt.Fprintf(w, "deleted successfully the user num %s ", UserId)
+// }
 
-func DeleteAllUsers(w http.ResponseWriter, r *http.Request) {
-	err := Session.Query("TRUNCATE users").Exec();
-	if err != nil {
-		fmt.Println("Error while deleting all users")
-		fmt.Println(err)
-	}
-	fmt.Fprintf(w, "deleted all successfully")
+// func DeleteAllUsers(w http.ResponseWriter, r *http.Request) {
+// 	err := Session.Query("TRUNCATE users").Exec();
+// 	if err != nil {
+// 		fmt.Println("Error while deleting all users")
+// 		fmt.Println(err)
+// 	}
+// 	fmt.Fprintf(w, "deleted all successfully")
 
-}
+// }
 
-func UpdateUser(w http.ResponseWriter, r *http.Request) {
-	UserId := mux.Vars(r)["id"]
-	var UpdateUser types.User
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintf(w, "Kindly enter data properly")
-	}
-	json.Unmarshal(reqBody, &UpdateUser)
+// func UpdateUser(w http.ResponseWriter, r *http.Request) {
+// 	UserId := mux.Vars(r)["id"]
+// 	var UpdateUser types.User
+// 	reqBody, err := ioutil.ReadAll(r.Body)
+// 	if err != nil {
+// 		fmt.Fprintf(w, "Kindly enter data properly")
+// 	}
+// 	json.Unmarshal(reqBody, &UpdateUser)
 	
-	err = Session.Query("UPDATE users SET email = ? WHERE id = ?", UpdateUser.Email, UserId).Exec();
-	if err != nil {
-		fmt.Println("Error while updating")
-		fmt.Println(err)
-	}
-	fmt.Fprintf(w, "updated successfully")
+// 	err = Session.Query("UPDATE users SET email = ? WHERE id = ?", UpdateUser.Email, UserId).Exec();
+// 	if err != nil {
+// 		fmt.Println("Error while updating")
+// 		fmt.Println(err)
+// 	}
+// 	fmt.Fprintf(w, "updated successfully")
 
-}
+// }
