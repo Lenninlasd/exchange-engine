@@ -24,6 +24,7 @@ func Routes() {
 
 	router.HandleFunc("/orderbook", GetOrderBook).Methods("GET")
 	// router.HandleFunc("/createOrder", CreateOrder).Methods("POST")
+	router.HandleFunc("/withdraw", Withdraw).Methods("POST")
 
 	headers := handlers.AllowedHeaders([]string{
 		"X-Requested-With",
