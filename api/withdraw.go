@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/lenninlasd/Engine/types"
 )
 
@@ -43,28 +44,49 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = SendWithdraw(withdraw)
+	withdrawId, err := initWithdrawTx(withdraw)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		panic(err)
 	}
 
-	// sent withdrawal signal the bdk wallet ✅
-	// receive signal from wallet -> broadcasted
 	// activate worker to check the mempool every minute if tx is confirmed
-
-	transaction := SendWithdrawToWallet(withdraw)
+	transaction, err := SendWithdrawToWallet(withdraw)
+	if err != nil {
+		// TODO: insert withdraw transaction closet by error
+		panic(err)
+	}
+	err = broadcastedWithdrawTx(withdrawId, transaction.Txid)
+	if err != nil {
+		panic(err)
+	}
 
 	Conv, _ := json.MarshalIndent(transaction, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
 }
 
-func SendWithdraw(withdraw types.Withdraw) error {
+func initWithdrawTx(withdraw types.Withdraw) (uuid.UUID, error) {
 	db := OpenConnection()
+
+	withdrawId := uuid.New()
+
 	_, err := db.Exec(
-		`INSERT INTO withdraw_history (user_id, amount, address, status) VALUES ($1, $2, $3, $4)`,
-		withdraw.UserId, withdraw.Amount, withdraw.Address, WITHDRAW_STATUS_INICIALIZED,
+		`INSERT INTO withdraw_history (id, user_id, amount, address, status) VALUES ($1, $2, $3, $4, $5)`,
+		withdrawId, withdraw.UserId, withdraw.Amount, withdraw.Address, WITHDRAW_STATUS_INICIALIZED,
+	)
+
+	defer db.Close()
+
+	return withdrawId, err
+}
+
+func broadcastedWithdrawTx(withdrawId uuid.UUID, txid string) error {
+	db := OpenConnection()
+
+	_, err := db.Exec(
+		`UPDATE withdraw_history SET status=$1, txid=$2, confirmations=0 WHERE id=$3`,
+		WITHDRAW_STATUS_BROADCASTED, txid, withdrawId,
 	)
 
 	defer db.Close()
@@ -72,7 +94,7 @@ func SendWithdraw(withdraw types.Withdraw) error {
 	return err
 }
 
-func SendWithdrawToWallet(withdraw types.Withdraw) types.Transaction {
+func SendWithdrawToWallet(withdraw types.Withdraw) (types.Transaction, error) {
 	// create the request body
 	requestBody, err := json.Marshal(map[string]interface{}{
 		"amount":  withdraw.Amount,
@@ -81,7 +103,7 @@ func SendWithdrawToWallet(withdraw types.Withdraw) types.Transaction {
 
 	request, err := http.NewRequest("POST", "http://wallet:8000/withdraw", bytes.NewBuffer(requestBody))
 	if err != nil {
-		panic(err)
+		return types.Transaction{}, err
 	}
 
 	// set the Content-Type header
@@ -91,16 +113,16 @@ func SendWithdrawToWallet(withdraw types.Withdraw) types.Transaction {
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		panic(err)
+		return types.Transaction{}, err
+	}
+
+	transaction := &types.Transaction{}
+	err = json.NewDecoder(response.Body).Decode(transaction)
+	if err != nil {
+		return types.Transaction{}, err
 	}
 
 	defer response.Body.Close()
 
-	transaction := &types.Transaction{}
-	derr := json.NewDecoder(response.Body).Decode(transaction)
-	if derr != nil {
-		panic(derr)
-	}
-
-	return *transaction
+	return *transaction, err
 }
