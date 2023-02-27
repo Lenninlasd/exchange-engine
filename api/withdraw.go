@@ -16,6 +16,7 @@ const (
 	WITHDRAW_STATUS_INICIALIZED = "initialized"
 	WITHDRAW_STATUS_BROADCASTED = "broadcasted"
 	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
+	WITHDRAW_STATUS_CANCELED    = "canceled"
 )
 
 func Withdraw(w http.ResponseWriter, r *http.Request) {
@@ -54,11 +55,13 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 	// activate worker to check the mempool every minute if tx is confirmed
 	transaction, err := SendWithdrawToWallet(withdraw)
 	if err != nil {
-		// TODO: insert withdraw transaction closet by error
+		cancelWithdrawalTx(withdrawId)
 		panic(err)
 	}
+
 	err = broadcastedWithdrawTx(withdrawId, transaction.Txid)
 	if err != nil {
+		cancelWithdrawalTx(withdrawId)
 		panic(err)
 	}
 
@@ -91,6 +94,16 @@ func broadcastedWithdrawTx(withdrawId uuid.UUID, txid string) error {
 
 	defer db.Close()
 
+	return err
+}
+
+func cancelWithdrawalTx(withdrawId uuid.UUID) error {
+	db := OpenConnection()
+	_, err := db.Exec(
+		`UPDATE withdraw_history SET status=$1 WHERE id=$2`,
+		WITHDRAW_STATUS_CANCELED, withdrawId,
+	)
+	defer db.Close()
 	return err
 }
 
