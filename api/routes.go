@@ -22,7 +22,7 @@ func Routes() {
 	router.HandleFunc("/balance/{id}", GetUserBalanceFromHttp).Methods("GET")
 	// router.HandleFunc("/createbalance", CreateBalance).Methods("POST")
 
-	router.HandleFunc("/orderbook", GetOrderBook).Methods("GET")
+	// router.HandleFunc("/orderbook", GetOrderBook).Methods("GET")
 	// router.HandleFunc("/createOrder", CreateOrder).Methods("POST")
 	router.HandleFunc("/withdraw", Withdraw).Methods("POST")
 

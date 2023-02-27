@@ -10,7 +10,7 @@ import (
 type Balance struct {
 	UserId    uuid.UUID `json:"user_id"`
 	Timestamp time.Time `json:"time_stamp"`
-	Amount    float64   `json:"amount"`
+	Amount    uint64    `json:"amount"`
 }
 
 func (balance *Balance) FromJSON(msg []byte) error {
@@ -24,13 +24,13 @@ func (balance *Balance) ToJSON() []byte {
 
 type UserBalances struct {
 	Id         uuid.UUID
-	Amount     float64
+	Amount     uint64
 	AmountUSDT float64
 }
 
 type Withdraw struct {
 	UserId  uuid.UUID `json:"user_id"`
-	Amount  float64   `json:"amount"`
+	Amount  uint64    `json:"amount"`
 	Address string    `json:"address"`
 }
 
