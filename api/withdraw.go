@@ -29,8 +29,14 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	withdraw.FromJSON(reqBody)
 
-	balance, err := GetUserBalance(withdraw.UserId)
+	isUnable := CheckUserWithdrawalStatus(withdraw.UserId)
+	if isUnable {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "%s", "User is not able to withdraw")
+		return
+	}
 
+	balance, err := GetUserBalance(withdraw.UserId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			userNotExist(w)
@@ -67,6 +73,21 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	Conv, _ := json.MarshalIndent(transaction, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
+}
+
+func CheckUserWithdrawalStatus(UserId uuid.UUID) bool {
+	db := OpenConnection()
+	defer db.Close()
+
+	query := `SELECT EXISTS (SELECT 1 FROM withdraw_history WHERE user_id = $1 AND status IN ($2, $3))`
+
+	var exists bool
+	err := db.QueryRow(query, UserId, WITHDRAW_STATUS_INICIALIZED, WITHDRAW_STATUS_BROADCASTED).Scan(&exists)
+	if err != nil {
+		panic(err)
+	}
+
+	return exists
 }
 
 func initWithdrawTx(withdraw types.Withdraw) (uuid.UUID, error) {
