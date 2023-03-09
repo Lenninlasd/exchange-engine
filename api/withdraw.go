@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/lenninlasd/Engine/types"
 )
 
@@ -17,6 +18,8 @@ const (
 	WITHDRAW_STATUS_BROADCASTED = "broadcasted"
 	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
 	WITHDRAW_STATUS_CANCELED    = "canceled"
+
+	MIM_NUMBER_CONFIRMATIONS = 3
 )
 
 func Withdraw(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +43,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	withdraw.UserId = user.Id
 
-	isUnable := CheckUserWithdrawalStatus(withdraw.UserId)
+	isUnable := checkUserWithdrawalStatus(withdraw.UserId)
 	if isUnable {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "%s", "User is not able to withdraw")
@@ -86,7 +89,26 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", string(Conv))
 }
 
-func CheckUserWithdrawalStatus(UserId uuid.UUID) bool {
+func GetPendingWithdrawalTxByEmail(w http.ResponseWriter, r *http.Request) {
+	db := OpenConnection()
+	var txid string
+	email := mux.Vars(r)["email"]
+
+	err := db.QueryRow(
+		`SELECT txid
+		FROM users INNER JOIN withdraw_history ON users.id = withdraw_history.user_id
+		WHERE users.email=$1 AND (status=$2 OR (status=$3 AND confirmations < $4))`,
+		email, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED, MIM_NUMBER_CONFIRMATIONS).Scan(&txid)
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer db.Close()
+	fmt.Fprintf(w, "%s", txid)
+}
+
+func checkUserWithdrawalStatus(UserId uuid.UUID) bool {
 	db := OpenConnection()
 	defer db.Close()
 
