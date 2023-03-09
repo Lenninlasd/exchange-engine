@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
 	// "github.com/gorilla/mux"
 	"github.com/lenninlasd/Engine/types"
 )
@@ -56,6 +57,16 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 	defer rows.Close()
 	defer db.Close()
+}
+
+func GetUserByEmail(email string) (types.User, error) {
+	db := OpenConnection()
+	var user types.User
+
+	err := db.QueryRow("SELECT id, email FROM users WHERE email=$1", email).Scan(&user.Id, &user.Email)
+
+	defer db.Close()
+	return user, err
 }
 
 // func GetOneUser(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +135,7 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 // 		fmt.Fprintf(w, "Kindly enter data properly")
 // 	}
 // 	json.Unmarshal(reqBody, &UpdateUser)
-	
+
 // 	err = Session.Query("UPDATE users SET email = ? WHERE id = ?", UpdateUser.Email, UserId).Exec();
 // 	if err != nil {
 // 		fmt.Println("Error while updating")

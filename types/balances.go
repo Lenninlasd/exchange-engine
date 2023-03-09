@@ -32,6 +32,7 @@ type Withdraw struct {
 	UserId  uuid.UUID `json:"user_id"`
 	Amount  uint64    `json:"amount"`
 	Address string    `json:"address"`
+	Email   string    `json:"email"`
 }
 
 func (withdraw *Withdraw) FromJSON(msg []byte) error {

@@ -29,6 +29,17 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	withdraw.FromJSON(reqBody)
 
+	user, err := GetUserByEmail(withdraw.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			userNotExist(w)
+			return
+		}
+		panic(err)
+	}
+
+	withdraw.UserId = user.Id
+
 	isUnable := CheckUserWithdrawalStatus(withdraw.UserId)
 	if isUnable {
 		w.WriteHeader(http.StatusBadRequest)
