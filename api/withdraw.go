@@ -91,21 +91,24 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 func GetPendingWithdrawalTxByEmail(w http.ResponseWriter, r *http.Request) {
 	db := OpenConnection()
-	var txid string
 	email := mux.Vars(r)["email"]
+	var tx types.BroadcastedTx
 
 	err := db.QueryRow(
-		`SELECT txid
+		`SELECT txid, address, time_stamp, status, confirmations
 		FROM users INNER JOIN withdraw_history ON users.id = withdraw_history.user_id
 		WHERE users.email=$1 AND (status=$2 OR (status=$3 AND confirmations < $4))`,
-		email, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED, MIM_NUMBER_CONFIRMATIONS).Scan(&txid)
+		email, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED, MIM_NUMBER_CONFIRMATIONS).Scan(
+		&tx.Txid, &tx.Address, &tx.Timestamp, &tx.Status, &tx.Confirmations)
 
 	if err != nil {
 		panic(err)
 	}
 
 	defer db.Close()
-	fmt.Fprintf(w, "%s", txid)
+
+	Conv, _ := json.MarshalIndent(tx, "", " ")
+	fmt.Fprintf(w, "%s", Conv)
 }
 
 func checkUserWithdrawalStatus(UserId uuid.UUID) bool {
