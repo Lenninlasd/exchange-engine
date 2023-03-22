@@ -9,5 +9,5 @@ type BroadcastedTx struct {
 	Address       string    `json:"address"`
 	Status        string    `json:"status"`
 	Confirmations uint64    `json:"confirmations"`
-	Timestamp     time.Time `json:"time_stamp"`
+	Timestamp     time.Time `json:"timestamp"`
 }
