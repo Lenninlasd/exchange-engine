@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -20,6 +22,8 @@ const (
 	WITHDRAW_STATUS_CANCELED    = "canceled"
 
 	MIM_NUMBER_CONFIRMATIONS = 3
+	TIME_TO_FECHT_MEMPOOL    = 2
+	ZENER_FEE                = 500
 )
 
 func Withdraw(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +76,6 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	// activate worker to check the mempool every minute if tx is confirmed
 	transaction, err := SendWithdrawToWallet(withdraw)
 	if err != nil {
 		cancelWithdrawalTx(withdrawId)
@@ -84,6 +87,8 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		cancelWithdrawalTx(withdrawId)
 		panic(err)
 	}
+
+	go watchTransactionOnMempool(transaction.Txid, TIME_TO_FECHT_MEMPOOL)
 
 	Conv, _ := json.MarshalIndent(transaction, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
@@ -98,10 +103,10 @@ func GetPendingWithdrawalTxByEmail(w http.ResponseWriter, r *http.Request) {
 		`SELECT txid, address, time_stamp, status, confirmations
 		FROM users INNER JOIN withdraw_history ON users.id = withdraw_history.user_id
 		WHERE users.email=$1 AND (status=$2 OR (status=$3 AND confirmations < $4))`,
-		email, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED, MIM_NUMBER_CONFIRMATIONS).Scan(
+		email, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED, MIM_NUMBER_CONFIRMATIONS+1).Scan(
 		&tx.Txid, &tx.Address, &tx.Timestamp, &tx.Status, &tx.Confirmations)
 
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		panic(err)
 	}
 
@@ -154,6 +159,19 @@ func broadcastedWithdrawTx(withdrawId uuid.UUID, txid string) error {
 	return err
 }
 
+func updateTxConfirmations(txid string, confirmations uint64) error {
+	db := OpenConnection()
+
+	_, err := db.Exec(
+		`UPDATE withdraw_history SET status=$1, confirmations=$2 WHERE txid=$3`,
+		WITHDRAW_STATUS_CONFIRMED, confirmations, txid,
+	)
+
+	defer db.Close()
+
+	return err
+}
+
 func cancelWithdrawalTx(withdrawId uuid.UUID) error {
 	db := OpenConnection()
 	_, err := db.Exec(
@@ -195,4 +213,90 @@ func SendWithdrawToWallet(withdraw types.Withdraw) (types.Transaction, error) {
 	defer response.Body.Close()
 
 	return *transaction, err
+}
+
+func getCurrentBlockHeight() (uint64, error) {
+	resp, err := http.Get("https://mempool.space/testnet/api/blocks/tip/height")
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	height, err := strconv.Atoi(string(body))
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(height), nil
+}
+
+func watchTransactionOnMempool(txid string, minutes time.Duration) {
+	ticker := time.NewTicker(minutes * time.Minute)
+	done := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				currentBlockHeight, err := getCurrentBlockHeight()
+				if err != nil {
+					fmt.Printf("Error fetching current block Height: %v\n", err)
+					continue
+				}
+
+				resp, err := http.Get(fmt.Sprintf("https://mempool.space/testnet/api/tx/%s", txid))
+				if err != nil {
+					fmt.Printf("Error fetching transaction data: %v\n", err)
+					continue
+				}
+				defer resp.Body.Close()
+
+				body, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					fmt.Printf("Error reading response body: %v\n", err)
+					continue
+				}
+
+				var txData map[string]interface{}
+				err = json.Unmarshal(body, &txData)
+				if err != nil {
+					fmt.Printf("Error decoding JSON response: %v\n", err)
+					continue
+				}
+
+				status := txData["status"].(map[string]interface{})
+				var confirmations uint64 = 0
+
+				// Check if transaction has 4 confirmations
+				if status["confirmed"] == true {
+					blockHeight := uint64(status["block_height"].(float64))
+					confirmations = currentBlockHeight - blockHeight + 1
+
+					err = updateTxConfirmations(txid, confirmations)
+					if err != nil {
+						fmt.Printf("Error updating the withdraw_history table and its confirmation number %v\n", err)
+						continue
+					}
+
+					if confirmations > MIM_NUMBER_CONFIRMATIONS {
+						done <- true
+						return
+					}
+				}
+
+				fmt.Printf("Transaction still has %d confirmations\n", confirmations)
+			}
+		}
+	}()
+
+	<-done
+	fmt.Println("Transaction has 4 confirmations, cancelling ticker...")
 }
