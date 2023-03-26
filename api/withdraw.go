@@ -21,9 +21,9 @@ const (
 	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
 	WITHDRAW_STATUS_CANCELED    = "canceled"
 
-	MIM_NUMBER_CONFIRMATIONS = 3
-	TIME_TO_FECHT_MEMPOOL    = 2
-	ZENER_FEE                = 500
+	MIM_NUMBER_CONFIRMATIONS        = 3
+	TIME_TO_FECHT_MEMPOOL           = 1
+	ZENER_FEE                uint64 = 500
 )
 
 func Withdraw(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +88,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	go watchTransactionOnMempool(transaction.Txid, TIME_TO_FECHT_MEMPOOL)
+	go watchTransactionOnMempool(transaction)
 
 	Conv, _ := json.MarshalIndent(transaction, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
@@ -235,9 +235,11 @@ func getCurrentBlockHeight() (uint64, error) {
 	return uint64(height), nil
 }
 
-func watchTransactionOnMempool(txid string, minutes time.Duration) {
-	ticker := time.NewTicker(minutes * time.Minute)
+func watchTransactionOnMempool(transaction types.Transaction) {
+	// TODO Implement websockets to watch new block confirmations
+	ticker := time.NewTicker(TIME_TO_FECHT_MEMPOOL * time.Minute)
 	done := make(chan bool)
+	isConfirmed := make(chan bool)
 
 	go func() {
 		for {
@@ -252,7 +254,7 @@ func watchTransactionOnMempool(txid string, minutes time.Duration) {
 					continue
 				}
 
-				resp, err := http.Get(fmt.Sprintf("https://mempool.space/testnet/api/tx/%s", txid))
+				resp, err := http.Get(fmt.Sprintf("https://mempool.space/testnet/api/tx/%s", transaction.Txid))
 				if err != nil {
 					fmt.Printf("Error fetching transaction data: %v\n", err)
 					continue
@@ -280,7 +282,11 @@ func watchTransactionOnMempool(txid string, minutes time.Duration) {
 					blockHeight := uint64(status["block_height"].(float64))
 					confirmations = currentBlockHeight - blockHeight + 1
 
-					err = updateTxConfirmations(txid, confirmations)
+					if confirmations == 1 {
+						isConfirmed <- true
+					}
+
+					err = updateTxConfirmations(transaction.Txid, confirmations)
 					if err != nil {
 						fmt.Printf("Error updating the withdraw_history table and its confirmation number %v\n", err)
 						continue
@@ -297,6 +303,19 @@ func watchTransactionOnMempool(txid string, minutes time.Duration) {
 		}
 	}()
 
+	go func() {
+		for r := range isConfirmed {
+			if r {
+				updateBalance(transaction)
+			}
+		}
+	}()
+
 	<-done
 	fmt.Println("Transaction has 4 confirmations, cancelling ticker...")
+}
+
+func updateBalance(transaction types.Transaction) { //, balance types.Balance) {
+	totalUserSpend := transaction.Sent - transaction.Received - transaction.Fee + ZENER_FEE
+	fmt.Printf("🐵 isConfirmed Updating balance... totalUserSpend: %d", totalUserSpend)
 }
