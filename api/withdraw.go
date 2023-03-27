@@ -21,9 +21,9 @@ const (
 	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
 	WITHDRAW_STATUS_CANCELED    = "canceled"
 
-	MIM_NUMBER_CONFIRMATIONS = 3
-	TIME_TO_FECHT_MEMPOOL    = 2
-	ZENER_FEE                = 500
+	MIM_NUMBER_CONFIRMATIONS        = 3
+	TIME_TO_FECHT_MEMPOOL           = 1
+	ZENER_FEE                uint64 = 500
 )
 
 func Withdraw(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +88,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	go watchTransactionOnMempool(transaction.Txid, TIME_TO_FECHT_MEMPOOL)
+	go watchTransactionOnMempool(transaction, balance)
 
 	Conv, _ := json.MarshalIndent(transaction, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
@@ -159,16 +159,35 @@ func broadcastedWithdrawTx(withdrawId uuid.UUID, txid string) error {
 	return err
 }
 
-func updateTxConfirmations(txid string, confirmations uint64) error {
+func updateByConfirmations(transaction types.Transaction, blockHeight uint64, balance types.Balance) error {
 	db := OpenConnection()
-
-	_, err := db.Exec(
-		`UPDATE withdraw_history SET status=$1, confirmations=$2 WHERE txid=$3`,
-		WITHDRAW_STATUS_CONFIRMED, confirmations, txid,
-	)
-
 	defer db.Close()
 
+	totalUserSpend := transaction.Sent - transaction.Received - transaction.Fee + ZENER_FEE
+	newBalanceAmount := balance.Amount - totalUserSpend
+
+	// Begin a transaction
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(`
+		UPDATE withdraw_history SET status=$1, confirmations=1, blockheight=$2 WHERE txid=$3;
+    `, WITHDRAW_STATUS_CONFIRMED, blockHeight, transaction.Txid)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec(`
+        UPDATE btcbalances SET amount=$1 WHERE user_id=$2;
+    `, newBalanceAmount, balance.UserId)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.Commit()
 	return err
 }
 
@@ -235,8 +254,9 @@ func getCurrentBlockHeight() (uint64, error) {
 	return uint64(height), nil
 }
 
-func watchTransactionOnMempool(txid string, minutes time.Duration) {
-	ticker := time.NewTicker(minutes * time.Minute)
+func watchTransactionOnMempool(transaction types.Transaction, balance types.Balance) {
+	// TODO Implement websockets to watch new block confirmations
+	ticker := time.NewTicker(TIME_TO_FECHT_MEMPOOL * time.Minute)
 	done := make(chan bool)
 
 	go func() {
@@ -246,13 +266,7 @@ func watchTransactionOnMempool(txid string, minutes time.Duration) {
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				currentBlockHeight, err := getCurrentBlockHeight()
-				if err != nil {
-					fmt.Printf("Error fetching current block Height: %v\n", err)
-					continue
-				}
-
-				resp, err := http.Get(fmt.Sprintf("https://mempool.space/testnet/api/tx/%s", txid))
+				resp, err := http.Get(fmt.Sprintf("https://mempool.space/testnet/api/tx/%s", transaction.Txid))
 				if err != nil {
 					fmt.Printf("Error fetching transaction data: %v\n", err)
 					continue
@@ -275,21 +289,17 @@ func watchTransactionOnMempool(txid string, minutes time.Duration) {
 				status := txData["status"].(map[string]interface{})
 				var confirmations uint64 = 0
 
-				// Check if transaction has 4 confirmations
 				if status["confirmed"] == true {
 					blockHeight := uint64(status["block_height"].(float64))
-					confirmations = currentBlockHeight - blockHeight + 1
 
-					err = updateTxConfirmations(txid, confirmations)
+					err = updateByConfirmations(transaction, blockHeight, balance)
 					if err != nil {
 						fmt.Printf("Error updating the withdraw_history table and its confirmation number %v\n", err)
 						continue
 					}
 
-					if confirmations > MIM_NUMBER_CONFIRMATIONS {
-						done <- true
-						return
-					}
+					done <- true
+					return
 				}
 
 				fmt.Printf("Transaction still has %d confirmations\n", confirmations)
@@ -298,5 +308,5 @@ func watchTransactionOnMempool(txid string, minutes time.Duration) {
 	}()
 
 	<-done
-	fmt.Println("Transaction has 4 confirmations, cancelling ticker...")
+	fmt.Println("Transaction is confirmed, cancelling ticker...")
 }
