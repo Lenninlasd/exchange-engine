@@ -2,12 +2,11 @@ package types
 
 import (
 	"encoding/json"
-	"github.com/google/uuid"
 )
 
 type User struct {
-	Id     uuid.UUID `json:"id"`
-	Email     string `json:"email"`
+	Id    string `json:"id"`
+	Email string `json:"email"`
 }
 
 func (user *User) FromJSON(msg []byte) error {

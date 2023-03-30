@@ -12,7 +12,7 @@ func Routes() {
 
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", homeLink)
-	router.HandleFunc("/createuser", CreateUser).Methods("POST")
+	// router.HandleFunc("/createuser", CreateUser).Methods("POST") // TODO: integrate with auth0
 	router.HandleFunc("/users", GetAllUsers).Methods("GET")
 	// router.HandleFunc("/countusers", CountAllUsers).Methods("GET")
 	// router.HandleFunc("/user/{id}", GetOneUser).Methods("GET")
@@ -25,7 +25,7 @@ func Routes() {
 	// router.HandleFunc("/orderbook", GetOrderBook).Methods("GET")
 	// router.HandleFunc("/createOrder", CreateOrder).Methods("POST")
 
-	router.HandleFunc("/pendingWithdrawalTx/{email}", GetPendingWithdrawalTxByEmail).Methods("GET")
+	router.HandleFunc("/pendingWithdrawalTx/{userid}", GetPendingWithdrawalTx).Methods("GET")
 	router.HandleFunc("/withdraw", Withdraw).Methods("POST")
 
 	headers := handlers.AllowedHeaders([]string{
