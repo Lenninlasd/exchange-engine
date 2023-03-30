@@ -28,21 +28,6 @@ type UserBalances struct {
 	AmountUSDT float64
 }
 
-type Withdraw struct {
-	UserId  uuid.UUID `json:"user_id"`
-	Amount  uint64    `json:"amount"`
-	Address string    `json:"address"`
-	Email   string    `json:"email"`
-}
-
-func (withdraw *Withdraw) FromJSON(msg []byte) error {
-	return json.Unmarshal(msg, withdraw)
-}
-func (withdraw *Withdraw) ToJSON() []byte {
-	str, _ := json.Marshal(withdraw)
-	return str
-}
-
 type Transaction struct {
 	Txid     string `json:"txid"`
 	Received uint64 `json:"received"`

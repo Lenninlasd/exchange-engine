@@ -36,17 +36,6 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	withdraw.FromJSON(reqBody)
 
-	user, err := GetUserByEmail(withdraw.Email)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			userNotExist(w)
-			return
-		}
-		panic(err)
-	}
-
-	withdraw.UserId = user.Id
-
 	isUnable := checkUserWithdrawalStatus(withdraw.UserId)
 	if isUnable {
 		w.WriteHeader(http.StatusBadRequest)
@@ -94,17 +83,17 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", string(Conv))
 }
 
-func GetPendingWithdrawalTxByEmail(w http.ResponseWriter, r *http.Request) {
+func GetPendingWithdrawalTx(w http.ResponseWriter, r *http.Request) {
 	db := OpenConnection()
-	email := mux.Vars(r)["email"]
+	userId := mux.Vars(r)["userid"]
 	var tx types.BroadcastedTx
 
 	err := db.QueryRow(
-		`SELECT txid, address, time_stamp, status, confirmations
-		FROM users INNER JOIN withdraw_history ON users.id = withdraw_history.user_id
-		WHERE users.email=$1 AND (status=$2 OR (status=$3 AND confirmations < $4))`,
-		email, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED, MIM_NUMBER_CONFIRMATIONS+1).Scan(
-		&tx.Txid, &tx.Address, &tx.Timestamp, &tx.Status, &tx.Confirmations)
+		`SELECT txid, address, time_stamp, status, confirmations, blockheight
+		FROM public.withdraw_history
+		WHERE user_id=$1 AND (status=$2 OR status=$3) ORDER BY time_stamp DESC LIMIT 1`,
+		userId, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED).Scan(
+		&tx.Txid, &tx.Address, &tx.Timestamp, &tx.Status, &tx.Confirmations, &tx.BlockHeight)
 
 	if err != nil && err != sql.ErrNoRows {
 		panic(err)

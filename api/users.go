@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	// "github.com/gorilla/mux"
@@ -14,27 +13,27 @@ func homeLink(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Restful API using Go and Postgres!")
 }
 
-func CreateUser(w http.ResponseWriter, r *http.Request) {
-	db := OpenConnection()
-	var NewUser types.User
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintf(w, "wrong data")
-	}
+// func CreateUser(w http.ResponseWriter, r *http.Request) {
+// 	db := OpenConnection()
+// 	var NewUser types.User
+// 	reqBody, err := ioutil.ReadAll(r.Body)
+// 	if err != nil {
+// 		fmt.Fprintf(w, "wrong data")
+// 	}
 
-	NewUser.FromJSON(reqBody)
+// 	NewUser.FromJSON(reqBody)
 
-	_, err = db.Exec(`INSERT INTO users (email) VALUES ($1)`, NewUser.Email)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		panic(err)
-	}
+// 	_, err = db.Exec(`INSERT INTO users (email) VALUES ($1)`, NewUser.Email)
+// 	if err != nil {
+// 		w.WriteHeader(http.StatusBadRequest)
+// 		panic(err)
+// 	}
 
-	w.WriteHeader(http.StatusCreated)
-	Conv, _ := json.MarshalIndent(NewUser, "", " ")
-	fmt.Fprintf(w, "%s", string(Conv))
-	defer db.Close()
-}
+// 	w.WriteHeader(http.StatusCreated)
+// 	Conv, _ := json.MarshalIndent(NewUser, "", " ")
+// 	fmt.Fprintf(w, "%s", string(Conv))
+// 	defer db.Close()
+// }
 
 func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	db := OpenConnection()
@@ -57,16 +56,6 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 	defer rows.Close()
 	defer db.Close()
-}
-
-func GetUserByEmail(email string) (types.User, error) {
-	db := OpenConnection()
-	var user types.User
-
-	err := db.QueryRow("SELECT id, email FROM users WHERE email=$1", email).Scan(&user.Id, &user.Email)
-
-	defer db.Close()
-	return user, err
 }
 
 // func GetOneUser(w http.ResponseWriter, r *http.Request) {
