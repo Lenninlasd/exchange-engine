@@ -19,7 +19,7 @@ func Routes() {
 	// router.HandleFunc("/removeuser/{id}", DeleteOneUser).Methods("DELETE")
 	// router.HandleFunc("/updateuser/{id}", UpdateUser).Methods("PATCH")
 
-	router.HandleFunc("/balance/{id}", GetUserBalanceFromHttp).Methods("GET")
+	router.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
 	// router.HandleFunc("/createbalance", CreateBalance).Methods("POST")
 
 	// router.HandleFunc("/orderbook", GetOrderBook).Methods("GET")

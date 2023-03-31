@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/lenninlasd/Engine/types"
 )
@@ -42,7 +41,7 @@ import (
 // 	fmt.Fprintf(w, "%s", string(Conv))
 // }
 
-func GetUserBalance(UserId uuid.UUID) (types.Balance, error) {
+func GetUserBalance(UserId string) (types.Balance, error) {
 	db := OpenConnection()
 	var balance types.Balance
 
@@ -54,16 +53,8 @@ func GetUserBalance(UserId uuid.UUID) (types.Balance, error) {
 }
 
 func GetUserBalanceFromHttp(w http.ResponseWriter, r *http.Request) {
-	UserId := mux.Vars(r)["id"]
-
-	Useruuid, err := uuid.Parse(UserId)
-
-	if err != nil {
-		userNotExist(w)
-		return
-	}
-
-	balance, err := GetUserBalance(Useruuid)
+	UserId := mux.Vars(r)["userid"]
+	balance, err := GetUserBalance(UserId)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -81,29 +72,6 @@ func userNotExist(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusBadRequest)
 	fmt.Fprintf(w, "%s", "User do not exist")
 }
-
-// func GetUserBalance(UserId gocql.UUID, tokenType string) types.Balance {
-// 	var balances []types.Balance
-// 	m := map[string]interface{}{}
-
-// 	iter := Session.Query("SELECT * FROM " + tokenType + "balances WHERE user_id=? ORDER BY time_stamp DESC LIMIT 1", UserId).Iter()
-// 	for iter.MapScan(m) {
-// 		balances = append(balances, types.Balance{
-// 			UserId:		m["user_id"].(gocql.UUID),
-// 			Timestamp:	m["time_stamp"].(time.Time),
-// 			Amount:		m["amount"].(float64),
-// 		})
-// 		m = map[string]interface{}{}
-// 	}
-
-// 	if len(balances) > 0 {
-// 		return balances[0]
-// 	}
-
-// 	return types.Balance{
-// 		UserId: UserId,
-// 	}
-// }
 
 // func GetAllBalances(w http.ResponseWriter, r *http.Request) {
 // 	var balances []types.Balance

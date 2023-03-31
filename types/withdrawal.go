@@ -3,14 +3,12 @@ package types
 import (
 	"encoding/json"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type Withdraw struct {
-	UserId  uuid.UUID `json:"user_id"`
-	Amount  uint64    `json:"amount"`
-	Address string    `json:"address"`
+	UserId  string `json:"user_id"`
+	Amount  uint64 `json:"amount"`
+	Address string `json:"address"`
 }
 
 func (withdraw *Withdraw) FromJSON(msg []byte) error {
