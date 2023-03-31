@@ -8,8 +8,8 @@ import (
 )
 
 type Balance struct {
-	UserId    uuid.UUID `json:"user_id"`
-	Timestamp time.Time `json:"time_stamp"`
+	UserId    string    `json:"user_id"`
+	Timestamp time.Time `json:"timestamp"`
 	Amount    uint64    `json:"amount"`
 }
 

@@ -21,9 +21,8 @@ const (
 	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
 	WITHDRAW_STATUS_CANCELED    = "canceled"
 
-	MIM_NUMBER_CONFIRMATIONS        = 3
-	TIME_TO_FECHT_MEMPOOL           = 1
-	ZENER_FEE                uint64 = 500
+	TIME_TO_FECHT_MEMPOOL        = 1
+	ZENER_FEE             uint64 = 500
 )
 
 func Withdraw(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +104,7 @@ func GetPendingWithdrawalTx(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", Conv)
 }
 
-func checkUserWithdrawalStatus(UserId uuid.UUID) bool {
+func checkUserWithdrawalStatus(UserId string) bool {
 	db := OpenConnection()
 	defer db.Close()
 
