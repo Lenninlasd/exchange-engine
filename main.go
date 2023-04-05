@@ -6,8 +6,8 @@ import (
 	// "encoding/json"
 	// "net/http"
 
-	"github.com/lenninlasd/Engine/engine"
 	"github.com/lenninlasd/Engine/api"
+	"github.com/lenninlasd/Engine/engine"
 )
 
 // create the order book
@@ -30,7 +30,7 @@ var OrderBook = engine.OrderBook{
 // }
 
 // func processOrderBook(w http.ResponseWriter, r *http.Request) {
-// 	for _, order := range bookStreamList {		
+// 	for _, order := range bookStreamList {
 // 		OrderBook.Process(order)
 // 	}
 
