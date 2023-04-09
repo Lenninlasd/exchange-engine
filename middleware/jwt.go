@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -9,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/auth0/go-jwt-middleware/v2"
+	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 )
@@ -78,4 +79,22 @@ func EnsureValidToken() func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return middleware.CheckJWT(next)
 	}
+}
+
+func GetTokenFromHeader(headers http.Header) (string, error) {
+	authHeader := headers.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("Authorization header missing")
+	}
+
+	tokenParts := strings.Split(authHeader, " ")
+	if len(tokenParts) != 2 {
+		return "", errors.New("Invalid authorization header")
+	}
+
+	if strings.ToLower(tokenParts[0]) != "bearer" {
+		return "", errors.New("Unsupported authorization scheme")
+	}
+
+	return tokenParts[1], nil
 }

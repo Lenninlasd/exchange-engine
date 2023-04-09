@@ -3,9 +3,13 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"os"
 
 	// "github.com/gorilla/mux"
+	"github.com/lenninlasd/Engine/middleware"
 	"github.com/lenninlasd/Engine/types"
 )
 
@@ -13,27 +17,30 @@ func homeLink(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Restful API using Go and Postgres!")
 }
 
-// func CreateUser(w http.ResponseWriter, r *http.Request) {
-// 	db := OpenConnection()
-// 	var NewUser types.User
-// 	reqBody, err := ioutil.ReadAll(r.Body)
-// 	if err != nil {
-// 		fmt.Fprintf(w, "wrong data")
-// 	}
+func CreateUserAfterSingUp(w http.ResponseWriter, r *http.Request) {
+	accessToken, err := middleware.GetTokenFromHeader(r.Header)
+	if err != nil {
+		panic(err)
+	}
 
-// 	NewUser.FromJSON(reqBody)
+	auth0User, err := getAuth0UserFromToken(accessToken)
+	if err != nil {
+		panic(err)
+	}
 
-// 	_, err = db.Exec(`INSERT INTO users (email) VALUES ($1)`, NewUser.Email)
-// 	if err != nil {
-// 		w.WriteHeader(http.StatusBadRequest)
-// 		panic(err)
-// 	}
+	db := OpenConnection()
+	_, err = db.Exec(`
+		INSERT INTO users (id, email) SELECT $1, $2
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $1)`, auth0User.Sub, auth0User.Email)
+	defer db.Close()
 
-// 	w.WriteHeader(http.StatusCreated)
-// 	Conv, _ := json.MarshalIndent(NewUser, "", " ")
-// 	fmt.Fprintf(w, "%s", string(Conv))
-// 	defer db.Close()
-// }
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
 
 func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	db := OpenConnection()
@@ -133,3 +140,42 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 // 	fmt.Fprintf(w, "updated successfully")
 
 // }
+
+func getAuth0UserFromToken(accessToken string) (types.Auth0User, error) {
+	var auth0User types.Auth0User
+
+	issuerURL, err := url.Parse("https://" + os.Getenv("AUTH0_DOMAIN") + "/userinfo")
+	if err != nil {
+		return auth0User, err
+	}
+
+	fmt.Println("accessToken", accessToken)
+
+	fmt.Println("issuerURL.String()", issuerURL.String())
+
+	req, err := http.NewRequest("GET", issuerURL.String(), nil)
+	if err != nil {
+		return auth0User, err
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return auth0User, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return auth0User, err
+	}
+
+	err = auth0User.FromJSON(body)
+	if err != nil {
+		return auth0User, err
+	}
+
+	return auth0User, nil
+}

@@ -19,6 +19,7 @@ func Routes() {
 	router.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
 	router.HandleFunc("/pendingWithdrawalTx/{userid}", GetPendingWithdrawalTx).Methods("GET")
 	router.HandleFunc("/withdraw", Withdraw).Methods("POST")
+	router.HandleFunc("/singup", CreateUserAfterSingUp).Methods("POST")
 
 	headers := handlers.AllowedHeaders([]string{
 		"X-Requested-With",
