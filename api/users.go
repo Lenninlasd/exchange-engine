@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 
-	// "github.com/gorilla/mux"
 	"github.com/lenninlasd/Engine/middleware"
 	"github.com/lenninlasd/Engine/types"
 )
@@ -18,12 +17,7 @@ func homeLink(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateUserAfterSingUp(w http.ResponseWriter, r *http.Request) {
-	accessToken, err := middleware.GetTokenFromHeader(r.Header)
-	if err != nil {
-		panic(err)
-	}
-
-	auth0User, err := getAuth0UserFromToken(accessToken)
+	auth0User, err := GetUserFromHeader(r)
 	if err != nil {
 		panic(err)
 	}
@@ -123,23 +117,20 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 // }
 
-// func UpdateUser(w http.ResponseWriter, r *http.Request) {
-// 	UserId := mux.Vars(r)["id"]
-// 	var UpdateUser types.User
-// 	reqBody, err := ioutil.ReadAll(r.Body)
-// 	if err != nil {
-// 		fmt.Fprintf(w, "Kindly enter data properly")
-// 	}
-// 	json.Unmarshal(reqBody, &UpdateUser)
+func GetUserFromHeader(r *http.Request) (types.Auth0User, error) {
+	var auth0User types.Auth0User
+	accessToken, err := middleware.GetTokenFromHeader(r.Header)
+	if err != nil {
+		return auth0User, err
+	}
 
-// 	err = Session.Query("UPDATE users SET email = ? WHERE id = ?", UpdateUser.Email, UserId).Exec();
-// 	if err != nil {
-// 		fmt.Println("Error while updating")
-// 		fmt.Println(err)
-// 	}
-// 	fmt.Fprintf(w, "updated successfully")
+	auth0User, err = getAuth0UserFromToken(accessToken)
+	if err != nil {
+		return auth0User, err
+	}
 
-// }
+	return auth0User, nil
+}
 
 func getAuth0UserFromToken(accessToken string) (types.Auth0User, error) {
 	var auth0User types.Auth0User

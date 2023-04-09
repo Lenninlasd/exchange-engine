@@ -10,7 +10,6 @@ import (
 )
 
 func Routes() {
-	// router.HandleFunc("/createuser", CreateUser).Methods("POST") // TODO: integrate with auth0
 	router := mux.NewRouter().StrictSlash(true)
 	router.Use(middleware.EnsureValidToken())
 
