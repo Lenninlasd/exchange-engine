@@ -140,10 +140,6 @@ func getAuth0UserFromToken(accessToken string) (types.Auth0User, error) {
 		return auth0User, err
 	}
 
-	fmt.Println("accessToken", accessToken)
-
-	fmt.Println("issuerURL.String()", issuerURL.String())
-
 	req, err := http.NewRequest("GET", issuerURL.String(), nil)
 	if err != nil {
 		return auth0User, err
