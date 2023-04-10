@@ -16,7 +16,7 @@ func homeLink(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Restful API using Go and Postgres!")
 }
 
-func CreateUserAfterSingUp(w http.ResponseWriter, r *http.Request) {
+func CreateUserAfterSignUp(w http.ResponseWriter, r *http.Request) {
 	auth0User, err := GetUserFromHeader(r)
 	if err != nil {
 		panic(err)

@@ -14,11 +14,11 @@ func Routes() {
 	router.Use(middleware.EnsureValidToken())
 
 	router.HandleFunc("/", homeLink)
-	router.HandleFunc("/users", GetAllUsers).Methods("GET")
+	router.HandleFunc("/users", GetAllUsers).Methods("GET") // TODO: only for admin.
 	router.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
 	router.HandleFunc("/pendingWithdrawalTx/{userid}", GetPendingWithdrawalTx).Methods("GET")
 	router.HandleFunc("/withdraw", Withdraw).Methods("POST")
-	router.HandleFunc("/singup", CreateUserAfterSingUp).Methods("POST")
+	router.HandleFunc("/signup", CreateUserAfterSignUp).Methods("POST")
 
 	headers := handlers.AllowedHeaders([]string{
 		"X-Requested-With",
