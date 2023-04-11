@@ -135,7 +135,12 @@ func GetUserFromHeader(r *http.Request) (types.Auth0User, error) {
 func getAuth0UserFromToken(accessToken string) (types.Auth0User, error) {
 	var auth0User types.Auth0User
 
-	issuerURL, err := url.Parse("https://" + os.Getenv("AUTH0_DOMAIN") + "/userinfo")
+	protocol, present := os.LookupEnv("AUTH0_PROTOCOL")
+	if !present {
+		protocol = "https"
+	}
+
+	issuerURL, err := url.Parse(protocol + "://" + os.Getenv("AUTH0_DOMAIN") + "/userinfo")
 	if err != nil {
 		return auth0User, err
 	}
