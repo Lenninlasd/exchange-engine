@@ -13,8 +13,7 @@ import (
 	"github.com/lenninlasd/Engine/types"
 )
 
-func TestGetAuth0UserFromToken(t *testing.T) {
-	// Create a mock HTTP server
+func setupServer(t *testing.T) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader != "Bearer mock_access_token" {
@@ -29,10 +28,16 @@ func TestGetAuth0UserFromToken(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, responseBody)
 	}))
-	defer server.Close()
 
 	os.Setenv("AUTH0_PROTOCOL", "http")
 	os.Setenv("AUTH0_DOMAIN", strings.TrimPrefix(server.URL, "http://"))
+
+	return server
+}
+
+func TestGetAuth0UserFromToken(t *testing.T) {
+	server := setupServer(t)
+	defer server.Close()
 
 	auth0User, err := getAuth0UserFromToken("mock_access_token")
 	if err != nil {
@@ -51,24 +56,8 @@ func TestGetAuth0UserFromToken(t *testing.T) {
 }
 
 func TestGetUserFromHeader(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader != "Bearer mock_access_token" {
-			t.Errorf("Expected Authorization header 'Bearer mock_access_token', got %s", authHeader)
-		}
-
-		responseBody := `{
-			"sub": "mock_sub",
-			"email": "mockuser@example.com",
-			"email_verified": true
-		}`
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, responseBody)
-	}))
+	server := setupServer(t)
 	defer server.Close()
-
-	os.Setenv("AUTH0_PROTOCOL", "http")
-	os.Setenv("AUTH0_DOMAIN", strings.TrimPrefix(server.URL, "http://"))
 
 	req := &http.Request{
 		Header: http.Header{"Authorization": []string{"Bearer mock_access_token"}},
