@@ -17,7 +17,9 @@ func Routes() {
 	router.HandleFunc("/users", GetAllUsers).Methods("GET") // TODO: only for admin.
 	router.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
 	router.HandleFunc("/pendingWithdrawalTx/{userid}", GetPendingWithdrawalTx).Methods("GET")
-	router.HandleFunc("/reference", GetDepositReference).Methods("GET")
+	router.HandleFunc("/reference", GetDepositReference).
+		Queries("amount", "{amount:[0-9]+}", "currency", "{currency:[A-Za-z]+}").
+		Methods("GET")
 
 	router.HandleFunc("/withdraw", Withdraw).Methods("POST")
 	router.HandleFunc("/signup", CreateUserAfterSignUp).Methods("POST")
