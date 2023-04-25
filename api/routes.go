@@ -23,6 +23,7 @@ func Routes() {
 
 	router.HandleFunc("/withdraw", Withdraw).Methods("POST")
 	router.HandleFunc("/signup", CreateUserAfterSignUp).Methods("POST")
+	router.HandleFunc("/deposit", CreateFiatDeposit).Methods("POST")
 
 	headers := handlers.AllowedHeaders([]string{
 		"X-Requested-With",
