@@ -22,17 +22,13 @@ type WompiTransactionUpdatedEvent struct {
 	Event string `json:"event"`
 	Data  struct {
 		Transaction struct {
-			ID                string      `json:"id"`
-			AmountInCents     uint64      `json:"amount_in_cents"`
-			Reference         string      `json:"reference"`
-			CustomerEmail     string      `json:"customer_email"`
-			Currency          string      `json:"currency"`
-			PaymentMethodType string      `json:"payment_method_type"`
-			RedirectURL       string      `json:"redirect_url"` // ❌
-			Status            string      `json:"status"`
-			ShippingAddress   interface{} `json:"shipping_address"`  // ❌
-			PaymentLinkID     interface{} `json:"payment_link_id"`   // ❌
-			PaymentSourceID   interface{} `json:"payment_source_id"` // ❌
+			ID                string `json:"id"`
+			AmountInCents     uint64 `json:"amount_in_cents"`
+			Reference         string `json:"reference"`
+			CustomerEmail     string `json:"customer_email"`
+			Currency          string `json:"currency"`
+			PaymentMethodType string `json:"payment_method_type"`
+			Status            string `json:"status"`
 		} `json:"transaction"`
 	} `json:"data"`
 	Environment string `json:"environment"`
