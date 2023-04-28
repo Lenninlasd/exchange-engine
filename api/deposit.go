@@ -38,7 +38,7 @@ func GetDepositReference(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reference := uuid.New().String()
-	integrity := os.Getenv("WOMPY_INTEGRITY")
+	integrity := os.Getenv("WOMPI_INTEGRITY")
 	strToken := reference + amountStr + currency + integrity
 
 	hash := sha256.Sum256([]byte(strToken))
@@ -75,6 +75,42 @@ func CreateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 
 	defer db.Close()
 
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(w, "wrong data")
+	}
+
+	var wompyEvent types.WompiTransactionUpdatedEvent
+	wompyEvent.FromJSON(reqBody)
+
+	wompiEvent := os.Getenv("WOMPI_EVENT")
+	AmountInCents := strconv.FormatUint(wompyEvent.Data.Transaction.AmountInCents, 10)
+	Timestamp := strconv.FormatInt(wompyEvent.Timestamp, 10)
+
+	checksumString := wompyEvent.Data.Transaction.ID + wompyEvent.Data.Transaction.Status + AmountInCents + Timestamp + wompiEvent
+	hash := sha256.Sum256([]byte(checksumString))
+	checksum := hex.EncodeToString(hash[:])
+
+	if checksum != wompyEvent.Signature.Checksum {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "%s", "checksum mismatch")
+		return
+	}
+
+	db := OpenConnection()
+	_, err = db.Exec(
+		`UPDATE fiat_deposit_tx SET id=$1, status=$2 WHERE reference=$3`,
+		wompyEvent.Data.Transaction.ID, wompyEvent.Data.Transaction.Status, wompyEvent.Data.Transaction.Reference,
+	)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		panic(err)
