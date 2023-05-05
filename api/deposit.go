@@ -2,8 +2,10 @@ package api
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,7 +16,16 @@ import (
 	"github.com/lenninlasd/Engine/types"
 )
 
-const MIN_DEPOSIT = 100000
+const (
+	PENDING  = "PENDING"
+	APPROVED = "APPROVED"
+	DECLINED = "DECLINED"
+	ERROR    = "ERROR"
+	VOIDED   = "VOIDED"
+
+	SATS_PER_BTC = 100000000
+	MIN_DEPOSIT  = 100000
+)
 
 type RefResponse struct {
 	Reference string `json:"reference"`
@@ -38,7 +49,7 @@ func GetDepositReference(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reference := uuid.New().String()
-	integrity := os.Getenv("WOMPY_INTEGRITY")
+	integrity := os.Getenv("WOMPI_INTEGRITY")
 	strToken := reference + amountStr + currency + integrity
 
 	hash := sha256.Sum256([]byte(strToken))
@@ -71,13 +82,139 @@ func CreateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 	db := OpenConnection()
 	_, err = db.Exec(`
 		INSERT INTO fiat_deposit_tx (reference, amount_in_cents, status, user_id)
-		VALUES ($1, $2, $3, $4)`, depositTx.Reference, depositTx.AmountInCents, "INITIATE", auth0User.Sub)
+		VALUES ($1, $2, $3, $4)`, depositTx.Reference, depositTx.AmountInCents, PENDING, auth0User.Sub)
 
 	defer db.Close()
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		panic(err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func CompareChecksum(wompiEvent types.WompiTransactionUpdatedEvent, AmountInCents uint64) error {
+	wompiEventToken := os.Getenv("WOMPI_EVENT")
+	amountInCents := strconv.FormatUint(AmountInCents, 10)
+	Timestamp := strconv.FormatInt(wompiEvent.Timestamp, 10)
+
+	// * Calculate checksum with the AmountInCents from fiat_deposit_tx that was previosly created
+	checksumString := wompiEvent.Data.Transaction.ID + wompiEvent.Data.Transaction.Status + amountInCents + Timestamp + wompiEventToken
+	hash := sha256.Sum256([]byte(checksumString))
+	checksum := hex.EncodeToString(hash[:])
+
+	if checksum != wompiEvent.Signature.Checksum {
+		return errors.New("Checksum mismatch")
+	}
+	return nil
+}
+
+func GetFiatDepositData(reference string) (types.FiatDepositTx, error) {
+	db := OpenConnection()
+	var fiatDepositTx types.FiatDepositTx
+
+	err := db.QueryRow("SELECT user_id, amount_in_cents, status  FROM fiat_deposit_tx WHERE reference=$1", reference).Scan(&fiatDepositTx.UserId, &fiatDepositTx.AmountInCents, &fiatDepositTx.Status)
+
+	defer db.Close()
+
+	return fiatDepositTx, err
+}
+
+func UpdateBalanceAfterDeposit(
+	UserId string,
+	wompiEvent types.WompiTransactionUpdatedEvent,
+	btcCurrentPrice uint64,
+	balanceAmount uint64,
+) error {
+	db := OpenConnection()
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	result, err := tx.Exec(
+		`UPDATE fiat_deposit_tx SET id=$1, status=$2 WHERE reference=$3 AND status = $4`,
+		wompiEvent.Data.Transaction.ID, wompiEvent.Data.Transaction.Status, wompiEvent.Data.Transaction.Reference, PENDING,
+	)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	numRowsAffected, err := result.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	if numRowsAffected != 1 {
+		tx.Rollback()
+		return errors.New("Wrong event: No rows affected")
+	}
+
+	newBalanceAmount := balanceAmount + (SATS_PER_BTC * wompiEvent.Data.Transaction.AmountInCents / btcCurrentPrice)
+
+	result, err = tx.Exec(`UPDATE btcbalances SET amount=$1 WHERE user_id=$2;`, newBalanceAmount, UserId)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	numRowsAffected, err = result.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	if numRowsAffected != 1 {
+		tx.Rollback()
+		return errors.New("Wrong event: No rows in btc balance affected")
+	}
+
+	return tx.Commit()
+}
+
+func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(w, "wrong data")
+	}
+
+	var wompiEvent types.WompiTransactionUpdatedEvent
+	wompiEvent.FromJSON(reqBody)
+
+	fiatDepositTx, err := GetFiatDepositData(wompiEvent.Data.Transaction.Reference)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "%s", err)
+		return
+	}
+
+	err = CompareChecksum(wompiEvent, fiatDepositTx.AmountInCents)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "%s", err)
+		return
+	}
+
+	balance, err := GetUserBalance(fiatDepositTx.UserId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			userNotExist(w)
+			return
+		}
+		panic(err)
+	}
+
+	// TODO: Check btc price in binance?  Validate the price makes sense, probably validate in different sources
+	var btcCurrentPrice uint64 = 12933970000
+
+	err = UpdateBalanceAfterDeposit(fiatDepositTx.UserId, wompiEvent, btcCurrentPrice, balance.Amount)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", err)
 	}
 
 	w.WriteHeader(http.StatusOK)

@@ -11,19 +11,22 @@ import (
 
 func Routes() {
 	router := mux.NewRouter().StrictSlash(true)
-	router.Use(middleware.EnsureValidToken())
+	privateRouter := router.PathPrefix("/prv").Subrouter()
+	privateRouter.Use(middleware.EnsureValidToken())
 
-	router.HandleFunc("/", homeLink)
-	router.HandleFunc("/users", GetAllUsers).Methods("GET") // TODO: only for admin.
-	router.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
-	router.HandleFunc("/pendingWithdrawalTx/{userid}", GetPendingWithdrawalTx).Methods("GET")
-	router.HandleFunc("/reference", GetDepositReference).
+	router.HandleFunc("/", homeLink).Methods("GET")
+	router.HandleFunc("/wompi/event", UptateFiatDeposit).Methods("POST")
+
+	privateRouter.HandleFunc("/users", GetAllUsers).Methods("GET") // TODO: only for admin.
+	privateRouter.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
+	privateRouter.HandleFunc("/pendingWithdrawalTx/{userid}", GetPendingWithdrawalTx).Methods("GET")
+	privateRouter.HandleFunc("/reference", GetDepositReference).
 		Queries("amount", "{amount:[0-9]+}", "currency", "{currency:[A-Za-z]+}").
 		Methods("GET")
 
-	router.HandleFunc("/withdraw", Withdraw).Methods("POST")
-	router.HandleFunc("/signup", CreateUserAfterSignUp).Methods("POST")
-	router.HandleFunc("/deposit", CreateFiatDeposit).Methods("POST")
+	privateRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
+	privateRouter.HandleFunc("/signup", CreateUserAfterSignUp).Methods("POST")
+	privateRouter.HandleFunc("/deposit", CreateFiatDeposit).Methods("POST")
 
 	headers := handlers.AllowedHeaders([]string{
 		"X-Requested-With",
