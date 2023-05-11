@@ -123,7 +123,7 @@ func GetFiatDepositData(reference string) (types.FiatDepositTx, error) {
 
 func UpdateBalanceAfterDeposit(
 	UserId string,
-	wompiEvent types.WompiTransactionUpdatedEvent,
+	Transaction types.WompiTx,
 	btcCurrentPrice uint64,
 	balanceAmount uint64,
 ) error {
@@ -137,7 +137,7 @@ func UpdateBalanceAfterDeposit(
 
 	result, err := tx.Exec(
 		`UPDATE fiat_deposit_tx SET id=$1, status=$2 WHERE reference=$3 AND status = $4`,
-		wompiEvent.Data.Transaction.ID, wompiEvent.Data.Transaction.Status, wompiEvent.Data.Transaction.Reference, PENDING,
+		Transaction.ID, Transaction.Status, Transaction.Reference, PENDING,
 	)
 	if err != nil {
 		tx.Rollback()
@@ -154,7 +154,7 @@ func UpdateBalanceAfterDeposit(
 		return errors.New("Wrong event: No rows affected")
 	}
 
-	newBalanceAmount := balanceAmount + (SATS_PER_BTC * wompiEvent.Data.Transaction.AmountInCents / btcCurrentPrice)
+	newBalanceAmount := balanceAmount + (SATS_PER_BTC * Transaction.AmountInCents / btcCurrentPrice)
 
 	result, err = tx.Exec(`UPDATE btcbalances SET amount=$1 WHERE user_id=$2;`, newBalanceAmount, UserId)
 	if err != nil {
@@ -173,6 +173,21 @@ func UpdateBalanceAfterDeposit(
 	}
 
 	return tx.Commit()
+}
+
+func UpdateFailedFiatDeposit(Transaction types.WompiTx) error {
+	db := OpenConnection()
+	defer db.Close()
+
+	_, err := db.Exec(
+		`UPDATE fiat_deposit_tx SET id=$1, status=$2 WHERE reference=$3 AND status = $4`,
+		Transaction.ID, Transaction.Status, Transaction.Reference, PENDING,
+	)
+	if err != nil {
+		return err
+	}
+
+	return errors.New("Error on transaction: No Approved")
 }
 
 func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
@@ -207,10 +222,18 @@ func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
+	// the wompi event is Decline or Error
+	if wompiEvent.Data.Transaction.Status != APPROVED {
+		err = UpdateFailedFiatDeposit(wompiEvent.Data.Transaction)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", err)
+		return
+	}
+
 	// TODO: Check btc price in binance?  Validate the price makes sense, probably validate in different sources
 	var btcCurrentPrice uint64 = 12933970000
 
-	err = UpdateBalanceAfterDeposit(fiatDepositTx.UserId, wompiEvent, btcCurrentPrice, balance.Amount)
+	err = UpdateBalanceAfterDeposit(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPrice, balance.Amount)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

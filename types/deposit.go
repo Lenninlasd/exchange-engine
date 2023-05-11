@@ -21,18 +21,20 @@ type FiatDepositTx struct {
 	UserId        string `json:"user_id"`
 }
 
+type WompiTx struct {
+	ID                string `json:"id"`
+	AmountInCents     uint64 `json:"amount_in_cents"`
+	Reference         string `json:"reference"`
+	CustomerEmail     string `json:"customer_email"`
+	Currency          string `json:"currency"`
+	PaymentMethodType string `json:"payment_method_type"`
+	Status            string `json:"status"`
+}
+
 type WompiTransactionUpdatedEvent struct {
 	Event string `json:"event"`
 	Data  struct {
-		Transaction struct {
-			ID                string `json:"id"`
-			AmountInCents     uint64 `json:"amount_in_cents"`
-			Reference         string `json:"reference"`
-			CustomerEmail     string `json:"customer_email"`
-			Currency          string `json:"currency"`
-			PaymentMethodType string `json:"payment_method_type"`
-			Status            string `json:"status"`
-		} `json:"transaction"`
+		Transaction WompiTx `json:"transaction"`
 	} `json:"data"`
 	Environment string `json:"environment"`
 	Signature   struct {
