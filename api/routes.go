@@ -15,6 +15,8 @@ func Routes() {
 	privateRouter.Use(middleware.EnsureValidToken())
 
 	router.HandleFunc("/", homeLink).Methods("GET")
+	router.HandleFunc("/mempool/transaction-fee", GetTransactionFee).Methods("GET")
+	router.HandleFunc("/mempool/transaction-fee/{address}", GetTransactionFee).Methods("GET")
 	router.HandleFunc("/wompi/event", UptateFiatDeposit).Methods("POST")
 
 	privateRouter.HandleFunc("/users", GetAllUsers).Methods("GET") // TODO: only for admin.

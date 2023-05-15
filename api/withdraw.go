@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,7 +21,7 @@ const (
 	WITHDRAW_STATUS_CANCELED    = "canceled"
 
 	TIME_TO_FECHT_MEMPOOL        = 1
-	ZENER_FEE             uint64 = 500
+	ZENER_FEE             uint64 = 900
 )
 
 func Withdraw(w http.ResponseWriter, r *http.Request) {
@@ -31,6 +30,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		fmt.Fprintf(w, "wrong data")
+		return
 	}
 
 	withdraw.FromJSON(reqBody)
@@ -58,13 +58,19 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	withdrawId, err := initWithdrawTx(withdraw)
-
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		panic(err)
 	}
 
-	transaction, err := SendWithdrawToWallet(withdraw)
+	recomendedFees, err := GetMempoolFeeRates()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", "Error loading fees")
+		return
+	}
+
+	transaction, err := SendWithdrawToWallet(withdraw, recomendedFees.FastestFee)
 	if err != nil {
 		cancelWithdrawalTx(withdrawId)
 		panic(err)
@@ -151,7 +157,18 @@ func updateByConfirmations(transaction types.Transaction, blockHeight uint64, ba
 	db := OpenConnection()
 	defer db.Close()
 
-	totalUserSpend := transaction.Sent - transaction.Received - transaction.Fee + ZENER_FEE
+	sentToUser := transaction.Sent - transaction.Received
+
+	// MODEL 1: in this case the user is charged with on chain fees and the ZENER fee
+	totalUserSpend := sentToUser + ZENER_FEE + transaction.Fee
+
+	// MODEL 2:in this case ZENER_FEE contains the fee,
+	// but if the on chain fees are grater than the zener fee the user pay the on chain fees
+	// totalUserSpend := sentToUser + transaction.Fee
+	// if transaction.Fee <= ZENER_FEE {
+	// 	totalUserSpend = sentToUser + ZENER_FEE - transaction.Fee
+	// }
+
 	newBalanceAmount := balance.Amount - totalUserSpend
 
 	// Begin a transaction
@@ -189,11 +206,12 @@ func cancelWithdrawalTx(withdrawId uuid.UUID) error {
 	return err
 }
 
-func SendWithdrawToWallet(withdraw types.Withdraw) (types.Transaction, error) {
+func SendWithdrawToWallet(withdraw types.Withdraw, feeRate float32) (types.Transaction, error) {
 	// create the request body
 	requestBody, err := json.Marshal(map[string]interface{}{
-		"amount":  withdraw.Amount,
-		"address": withdraw.Address,
+		"amount":   withdraw.Amount,
+		"address":  withdraw.Address,
+		"fee_rate": feeRate,
 	})
 
 	request, err := http.NewRequest("POST", "http://wallet:8000/withdraw", bytes.NewBuffer(requestBody))
@@ -220,26 +238,6 @@ func SendWithdrawToWallet(withdraw types.Withdraw) (types.Transaction, error) {
 	defer response.Body.Close()
 
 	return *transaction, err
-}
-
-func getCurrentBlockHeight() (uint64, error) {
-	resp, err := http.Get("https://mempool.space/testnet/api/blocks/tip/height")
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return 0, err
-	}
-
-	height, err := strconv.Atoi(string(body))
-	if err != nil {
-		return 0, err
-	}
-
-	return uint64(height), nil
 }
 
 func watchTransactionOnMempool(transaction types.Transaction, balance types.Balance) {
