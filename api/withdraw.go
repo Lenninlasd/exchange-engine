@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/lenninlasd/Engine/constants"
 	"github.com/lenninlasd/Engine/types"
 )
 
@@ -20,8 +21,7 @@ const (
 	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
 	WITHDRAW_STATUS_CANCELED    = "canceled"
 
-	TIME_TO_FECHT_MEMPOOL        = 1
-	ZENER_FEE             uint64 = 900
+	TIME_TO_FECHT_MEMPOOL = 1
 )
 
 func Withdraw(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +160,7 @@ func updateByConfirmations(transaction types.Transaction, blockHeight uint64, ba
 	sentToUser := transaction.Sent - transaction.Received
 
 	// MODEL 1: in this case the user is charged with on chain fees and the ZENER fee
-	totalUserSpend := sentToUser + ZENER_FEE + transaction.Fee
+	totalUserSpend := sentToUser + constants.ZENER_FEE + transaction.Fee
 
 	// MODEL 2:in this case ZENER_FEE contains the fee,
 	// but if the on chain fees are grater than the zener fee the user pay the on chain fees

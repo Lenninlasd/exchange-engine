@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/lenninlasd/Engine/constants"
 	"github.com/lenninlasd/Engine/types"
 )
 
@@ -97,5 +98,5 @@ func GetTransactionFee(w http.ResponseWriter, r *http.Request) {
 	txDetails.FromJSON(body)
 
 	// send the fee rate as well
-	fmt.Fprintf(w, "%d", txDetails.Fee)
+	fmt.Fprintf(w, "%d", txDetails.Fee+constants.ZENER_FEE)
 }

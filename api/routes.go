@@ -15,8 +15,6 @@ func Routes() {
 	privateRouter.Use(middleware.EnsureValidToken())
 
 	router.HandleFunc("/", homeLink).Methods("GET")
-	router.HandleFunc("/mempool/transaction-fee", GetTransactionFee).Methods("GET")
-	router.HandleFunc("/mempool/transaction-fee/{address}", GetTransactionFee).Methods("GET")
 	router.HandleFunc("/wompi/event", UptateFiatDeposit).Methods("POST")
 
 	privateRouter.HandleFunc("/users", GetAllUsers).Methods("GET") // TODO: only for admin.
@@ -25,6 +23,8 @@ func Routes() {
 	privateRouter.HandleFunc("/reference", GetDepositReference).
 		Queries("amount", "{amount:[0-9]+}", "currency", "{currency:[A-Za-z]+}").
 		Methods("GET")
+	privateRouter.HandleFunc("/mempool/transaction-fee", GetTransactionFee).Methods("GET")
+	privateRouter.HandleFunc("/mempool/transaction-fee/{address}", GetTransactionFee).Methods("GET")
 
 	privateRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
 	privateRouter.HandleFunc("/signup", CreateUserAfterSignUp).Methods("POST")
