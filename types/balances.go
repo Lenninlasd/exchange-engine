@@ -29,10 +29,14 @@ type UserBalances struct {
 }
 
 type Transaction struct {
-	Txid     string `json:"txid"`
+	Txid string `json:"txid"`
+	// Received value (sats)
+	// Sum of owned outputs of this transaction.
 	Received uint64 `json:"received"`
-	Sent     uint64 `json:"sent"`
-	Fee      uint64 `json:"fee"`
+	/// Sent value (sats)
+	/// Sum of owned inputs of this transaction.
+	Sent uint64 `json:"sent"`
+	Fee  uint64 `json:"fee"`
 }
 
 func (transaction *Transaction) FromJSON(msg []byte) error {

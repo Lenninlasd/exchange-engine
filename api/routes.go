@@ -23,6 +23,8 @@ func Routes() {
 	privateRouter.HandleFunc("/reference", GetDepositReference).
 		Queries("amount", "{amount:[0-9]+}", "currency", "{currency:[A-Za-z]+}").
 		Methods("GET")
+	privateRouter.HandleFunc("/mempool/transaction-fee", GetTransactionFee).Methods("GET")
+	privateRouter.HandleFunc("/mempool/transaction-fee/{address}", GetTransactionFee).Methods("GET")
 
 	privateRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
 	privateRouter.HandleFunc("/signup", CreateUserAfterSignUp).Methods("POST")
