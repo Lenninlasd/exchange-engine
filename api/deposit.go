@@ -154,6 +154,7 @@ func UpdateBalanceAfterDeposit(
 		return errors.New("Wrong event: No rows affected")
 	}
 
+	// TODO: include the zener deposit fee ?
 	newBalanceAmount := balanceAmount + (SATS_PER_BTC * Transaction.AmountInCents / btcCurrentPrice)
 
 	result, err = tx.Exec(`UPDATE btcbalances SET amount=$1 WHERE user_id=$2;`, newBalanceAmount, UserId)
@@ -230,11 +231,14 @@ func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Check btc price in binance?  Validate the price makes sense, probably validate in different sources
-	var btcCurrentPrice uint64 = 12933970000
+	btcCurrentPriceInCents, err := Exchangerate()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", "Error loading rates")
+		panic(err)
+	}
 
-	err = UpdateBalanceAfterDeposit(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPrice, balance.Amount)
-
+	err = UpdateBalanceAfterDeposit(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPriceInCents, balance.Amount)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", err)

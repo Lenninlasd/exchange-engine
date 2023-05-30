@@ -82,7 +82,7 @@ func getOpenexchangerates() (ExchangeRate, error) {
 }
 
 // TODO: make unit test
-func Exchangerate(w http.ResponseWriter, r *http.Request) {
+func Exchangerate() (uint64, error) {
 	db := OpenConnection()
 	defer db.Close()
 
@@ -92,8 +92,7 @@ func Exchangerate(w http.ResponseWriter, r *http.Request) {
 
 	err := db.QueryRow("SELECT price, updatedat FROM marketprice WHERE symbol='USDCOP'").Scan(&currentPrice, &uptatedAt)
 	if err != nil && err != sql.ErrNoRows {
-		w.WriteHeader(http.StatusInternalServerError)
-		panic(err)
+		return 0, err
 	}
 
 	currentTime := time.Now()
@@ -101,11 +100,8 @@ func Exchangerate(w http.ResponseWriter, r *http.Request) {
 
 	if difference >= time.Minute*TIME_FECHT_RATES || currentPrice == 0 {
 		rate, err := getOpenexchangerates()
-
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "%s", "Error loading rates")
-			panic(err)
+			return 0, err
 		}
 
 		USDCOP_price = rate.Rates["COP"]
@@ -115,8 +111,7 @@ func Exchangerate(w http.ResponseWriter, r *http.Request) {
 			USDCOP_price, currentTime,
 		)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			panic(err)
+			return 0, err
 		}
 	} else {
 		USDCOP_price = currentPrice
@@ -124,10 +119,19 @@ func Exchangerate(w http.ResponseWriter, r *http.Request) {
 
 	BTCUSDT_price, err := getbinanceBTCUSDT()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", "Error loading rates")
-		return
+		return 0, err
 	}
 
-	fmt.Fprintf(w, "%f", USDCOP_price*BTCUSDT_price)
+	return uint64(USDCOP_price * BTCUSDT_price * 100), nil
+}
+
+func ExchangerateApi(w http.ResponseWriter, r *http.Request) {
+	price, err := Exchangerate()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", "Error loading rates")
+		panic(err)
+	}
+
+	fmt.Fprintf(w, "%d", price)
 }
