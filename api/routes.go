@@ -26,6 +26,8 @@ func Routes() {
 	privateRouter.HandleFunc("/mempool/transaction-fee", GetTransactionFee).Methods("GET")
 	privateRouter.HandleFunc("/mempool/transaction-fee/{address}", GetTransactionFee).Methods("GET")
 
+	privateRouter.HandleFunc("/exchangerate/BTCCOP", ExchangerateApi).Methods("GET")
+
 	privateRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
 	privateRouter.HandleFunc("/signup", CreateUserAfterSignUp).Methods("POST")
 	privateRouter.HandleFunc("/deposit", CreateFiatDeposit).Methods("POST")
