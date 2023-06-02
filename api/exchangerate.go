@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 )
 
 const TIME_FECHT_RATES = 45
+const ZENER_DEPOSIT_SPREAD = 0.01
 
 type ExchangeRate struct {
 	Disclaimer string             `json:"disclaimer"`
@@ -38,7 +40,7 @@ func getbinanceBTCUSDT() (float64, error) {
 	var binancePrice BinancePrice
 	var price float64
 
-	resp, err := http.Get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT")
+	resp, err := http.Get("https://api.binance.us/api/v3/ticker/price?symbol=BTCUSDT")
 	if err != nil {
 		return price, err
 	}
@@ -61,8 +63,9 @@ func getbinanceBTCUSDT() (float64, error) {
 
 func getOpenexchangerates() (ExchangeRate, error) {
 	var rate ExchangeRate
+	appId := os.Getenv("OPENEXCHANGE_APP_ID")
 
-	resp, err := http.Get("https://openexchangerates.org/api/latest.json?app_id=139f2055cc664a5db35b83dbca607f56&symbols=COP,EUR,")
+	resp, err := http.Get(fmt.Sprintf("https://openexchangerates.org/api/latest.json?app_id=%s&symbols=COP,", appId))
 	if err != nil {
 		return rate, err
 	}
@@ -122,7 +125,10 @@ func Exchangerate() (uint64, error) {
 		return 0, err
 	}
 
-	return uint64(USDCOP_price * BTCUSDT_price * 100), nil
+	// include the zener deposit spread
+	priceAfterFee := USDCOP_price * BTCUSDT_price * (1 + ZENER_DEPOSIT_SPREAD)
+
+	return uint64(priceAfterFee * 100), nil
 }
 
 func ExchangerateApi(w http.ResponseWriter, r *http.Request) {

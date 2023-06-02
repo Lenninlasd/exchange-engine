@@ -154,7 +154,6 @@ func UpdateBalanceAfterDeposit(
 		return errors.New("Wrong event: No rows affected")
 	}
 
-	// TODO: include the zener deposit fee ?
 	newBalanceAmount := balanceAmount + (SATS_PER_BTC * Transaction.AmountInCents / btcCurrentPrice)
 
 	result, err = tx.Exec(`UPDATE btcbalances SET amount=$1 WHERE user_id=$2;`, newBalanceAmount, UserId)
