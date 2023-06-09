@@ -58,7 +58,8 @@ func GetUserBalanceFromHttp(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			userNotExist(w)
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "%s", "Balance not found")
 			return
 		}
 		panic(err)
