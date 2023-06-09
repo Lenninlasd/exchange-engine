@@ -65,6 +65,7 @@ func getOpenexchangerates() (ExchangeRate, error) {
 	var rate ExchangeRate
 	appId := os.Getenv("OPENEXCHANGE_APP_ID")
 
+	// TODO: check error when the is no app_id
 	resp, err := http.Get(fmt.Sprintf("https://openexchangerates.org/api/latest.json?app_id=%s&symbols=COP,", appId))
 	if err != nil {
 		return rate, err
