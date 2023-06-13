@@ -157,7 +157,7 @@ func updateByConfirmations(transaction types.Transaction, blockHeight uint64, ba
 	db := OpenConnection()
 	defer db.Close()
 
-	sentToUser := transaction.Sent - transaction.Received
+	sentToUser := transaction.Sent - transaction.Received - transaction.Fee
 
 	// MODEL 1: in this case the user is charged with on chain fees and the ZENER fee
 	totalUserSpend := sentToUser + constants.ZENER_FEE + transaction.Fee
@@ -170,6 +170,9 @@ func updateByConfirmations(transaction types.Transaction, blockHeight uint64, ba
 	// }
 
 	newBalanceAmount := balance.Amount - totalUserSpend
+	if totalUserSpend > balance.Amount {
+		newBalanceAmount = 0
+	}
 
 	// Begin a transaction
 	tx, err := db.Begin()
