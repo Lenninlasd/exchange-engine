@@ -4,10 +4,9 @@
 name: Go
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  release:
+    types:
+      - created
 
 jobs:
 
@@ -23,3 +22,14 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        
+    - name: Build and Push Image
+      run: |
+        # Build and push your Docker image to the DigitalOcean registry
+        docker build . -t registry.digitalocean.com/zener/engine:"$GIT_TAG_NAME"
+        docker push registry.digitalocean.com/zener/engine:"$GIT_TAG_NAME"
