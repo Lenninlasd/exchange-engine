@@ -5,8 +5,7 @@ name: Go
 
 on:
   release:
-    types:
-      - created
+    types: [published]
 
 jobs:
 
@@ -31,5 +30,5 @@ jobs:
     - name: Build and Push Image
       run: |
         # Build and push your Docker image to the DigitalOcean registry
-        docker build . -t registry.digitalocean.com/zener/engine:"$GIT_TAG_NAME"
-        docker push registry.digitalocean.com/zener/engine:"$GIT_TAG_NAME"
+        docker build . -t registry.digitalocean.com/zener/engine:${{ github.event.release.tag_name }}
+        docker push registry.digitalocean.com/zener/engine:${{ github.event.release.tag_name }}
