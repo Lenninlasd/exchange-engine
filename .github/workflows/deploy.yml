@@ -32,6 +32,7 @@ jobs:
 
             docker run -d \
               --name engine \
+              --network docker-zener_mynetwork \
               -p 8080:8080 \
               -e AUTH0_DOMAIN=${{ vars.AUTH0_DOMAIN }} \
               -e AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }} \
