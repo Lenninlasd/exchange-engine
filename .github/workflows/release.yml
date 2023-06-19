@@ -43,15 +43,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Deploy Deploy engine
+      - name: Deploy Engine
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{secrets.SSH_HOST}}
           key: ${{secrets.SSH_KEY}}
           username: ${{ secrets.SSH_USERNAME }}
           script: |
-            docker pull registry.digitalocean.com/zener/engine:$TAG_NAME
-
+            docker pull registry.digitalocean.com/zener/engine:${{ env.TAG_NAME }}
             echo "Stopping and removing the existing engine container..."
             docker stop engine
             docker rm engine
@@ -65,5 +64,5 @@ jobs:
               -e WOMPI_INTEGRITY=${{ secrets.WOMPI_INTEGRITY }} \
               -e WOMPI_EVENT=${{ secrets.WOMPI_EVENT }} \
               -e OPENEXCHANGE_APP_ID=${{ secrets.OPENEXCHANGE_APP_ID }} \
-              registry.digitalocean.com/zener/engine:$TAG_NAME
+              registry.digitalocean.com/zener/engine:${{ env.TAG_NAME }}
 

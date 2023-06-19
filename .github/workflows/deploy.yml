@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Deploy NodeJS app
+      - name: Deploy Engine
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{secrets.SSH_HOST}} # IP address of the server you wish to ssh into
