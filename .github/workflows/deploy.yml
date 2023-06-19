@@ -22,7 +22,7 @@ jobs:
           key: ${{secrets.SSH_KEY}} # Private or public key of the server
           username: ${{ secrets.SSH_USERNAME }} # User of the server you want to ssh into
           script: |
-            docker pull registry.digitalocean.com/zener/engine:v0.0.11
+            docker pull registry.digitalocean.com/zener/engine:0.0.11
             echo "Stopping and removing the existing engine container..."
             docker stop engine
             docker rm engine
@@ -36,4 +36,4 @@ jobs:
               -e WOMPI_INTEGRITY=${{ secrets.WOMPI_INTEGRITY }} \
               -e WOMPI_EVENT=${{ secrets.WOMPI_EVENT }} \
               -e OPENEXCHANGE_APP_ID=${{ secrets.OPENEXCHANGE_APP_ID }} \
-              registry.digitalocean.com/zener/engine:v0.0.11
+              registry.digitalocean.com/zener/engine:0.0.11
