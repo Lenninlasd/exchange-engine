@@ -50,7 +50,7 @@ jobs:
           key: ${{secrets.SSH_KEY}}
           username: ${{ secrets.SSH_USERNAME }}
           script: |
-            docker pull registry.digitalocean.com/zener/engine:"$TAG_NAME"
+            docker pull registry.digitalocean.com/zener/engine:$TAG_NAME
 
             echo "Stopping and removing the existing engine container..."
             docker stop engine
@@ -65,5 +65,5 @@ jobs:
               -e WOMPI_INTEGRITY=${{ secrets.WOMPI_INTEGRITY }} \
               -e WOMPI_EVENT=${{ secrets.WOMPI_EVENT }} \
               -e OPENEXCHANGE_APP_ID=${{ secrets.OPENEXCHANGE_APP_ID }} \
-              registry.digitalocean.com/zener/engine:"$TAG_NAME"
+              registry.digitalocean.com/zener/engine:$TAG_NAME
 
