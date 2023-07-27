@@ -1,18 +1,21 @@
 package api
- 
+
 import (
-    "database/sql"
-    "fmt"
-    _ "github.com/lib/pq"
+	"database/sql"
+	"fmt"
+	"os"
+
+	_ "github.com/lib/pq"
 )
- 
+
 const (
-    host     = "postgres"
-    port     = 5432
-    user     = "postgres"
-    password = "postgres"
-    dbname   = "engine"
+	host   = "postgres"
+	port   = 5432
+	user   = "postgres"
+	dbname = "engine"
 )
+
+var password = os.Getenv("POSTGRES_PASS")
 
 func OpenConnection() *sql.DB {
 	psqlconn := fmt.Sprintf(
@@ -21,16 +24,16 @@ func OpenConnection() *sql.DB {
 
 	db, err := sql.Open("postgres", psqlconn)
 	CheckError(err)
-	
+
 	// check db
 	err = db.Ping()
 	CheckError(err)
 
 	return db
 }
- 
+
 func CheckError(err error) {
-    if err != nil {
-        panic(err)
-    }
+	if err != nil {
+		panic(err)
+	}
 }
