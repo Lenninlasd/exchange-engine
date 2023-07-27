@@ -70,5 +70,6 @@ jobs:
               -e WOMPI_INTEGRITY=${{ secrets.WOMPI_INTEGRITY }} \
               -e WOMPI_EVENT=${{ secrets.WOMPI_EVENT }} \
               -e OPENEXCHANGE_APP_ID=${{ secrets.OPENEXCHANGE_APP_ID }} \
+              -e WITHDRAWAL_INTEGRITY=${{ secrets.WITHDRAWAL_INTEGRITY }} \
               registry.digitalocean.com/zener/engine:${{ env.TAG_NAME }}
 

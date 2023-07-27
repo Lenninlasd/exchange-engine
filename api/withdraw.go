@@ -2,11 +2,14 @@ package api
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -35,6 +38,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	withdraw.FromJSON(reqBody)
 
+	// TODO: Get userId from authentication
 	isUnable := checkUserWithdrawalStatus(withdraw.UserId)
 	if isUnable {
 		w.WriteHeader(http.StatusBadRequest)
@@ -56,8 +60,8 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%s", "User does not have sufficient funds")
 		return
 	}
-
-	withdrawId, err := initWithdrawTx(withdraw)
+	withdrawId := uuid.New()
+	err = initWithdrawTx(withdrawId, withdraw)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		panic(err)
@@ -70,7 +74,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transaction, err := SendWithdrawToWallet(withdraw, recomendedFees.FastestFee)
+	transaction, err := SendWithdrawToWallet(withdrawId, withdraw, recomendedFees.FastestFee)
 	if err != nil {
 		cancelWithdrawalTx(withdrawId)
 		panic(err)
@@ -125,10 +129,8 @@ func checkUserWithdrawalStatus(UserId string) bool {
 	return exists
 }
 
-func initWithdrawTx(withdraw types.Withdraw) (uuid.UUID, error) {
+func initWithdrawTx(withdrawId uuid.UUID, withdraw types.Withdraw) error {
 	db := OpenConnection()
-
-	withdrawId := uuid.New()
 
 	_, err := db.Exec(
 		`INSERT INTO withdraw_history (id, user_id, amount, address, status) VALUES ($1, $2, $3, $4, $5)`,
@@ -137,7 +139,7 @@ func initWithdrawTx(withdraw types.Withdraw) (uuid.UUID, error) {
 
 	defer db.Close()
 
-	return withdrawId, err
+	return err
 }
 
 func broadcastedWithdrawTx(withdrawId uuid.UUID, txid string) error {
@@ -209,12 +211,22 @@ func cancelWithdrawalTx(withdrawId uuid.UUID) error {
 	return err
 }
 
-func SendWithdrawToWallet(withdraw types.Withdraw, feeRate float32) (types.Transaction, error) {
+func SendWithdrawToWallet(withdrawId uuid.UUID, withdraw types.Withdraw, feeRate float32) (types.Transaction, error) {
+	reference := withdrawId.String()
+	integrity := os.Getenv("WITHDRAWAL_INTEGRITY")
+	feeRateString := fmt.Sprintf("%g", feeRate)
+	amountString := fmt.Sprintf("%d", withdraw.Amount)
+	strToken := reference + feeRateString + amountString + withdraw.Address + integrity
+	hash := sha256.Sum256([]byte(strToken))
+	checksum := hex.EncodeToString(hash[:])
+
 	// create the request body
 	requestBody, err := json.Marshal(map[string]interface{}{
-		"amount":   withdraw.Amount,
-		"address":  withdraw.Address,
-		"fee_rate": feeRate,
+		"reference": reference,
+		"amount":    withdraw.Amount,
+		"address":   withdraw.Address,
+		"fee_rate":  feeRate,
+		"checksum":  checksum,
 	})
 
 	request, err := http.NewRequest("POST", "http://wallet:8000/withdraw", bytes.NewBuffer(requestBody))
