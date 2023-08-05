@@ -25,6 +25,8 @@ const (
 	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
 	WITHDRAW_STATUS_CANCELED    = "canceled"
 
+	WITHDRAW_INTERNAL_STATE = "InsufficientFunds"
+
 	TIME_TO_FECHT_MEMPOOL = 1
 )
 
@@ -77,9 +79,12 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	transaction, err := SendWithdrawToWallet(withdrawId, withdraw, recomendedFees.FastestFee)
 	if err != nil {
-		if err.Error() == "InsufficientFunds" {
-			fmt.Println("InsufficientFunds")
-			// TODO: Add state to database
+		if err.Error() == WITHDRAW_INTERNAL_STATE {
+			updateError := updateInternalState(withdrawId, WITHDRAW_INTERNAL_STATE)
+			if updateError != nil {
+				cancelWithdrawalTx(withdrawId)
+				panic(updateError)
+			}
 			return
 		}
 		cancelWithdrawalTx(withdrawId)
@@ -96,6 +101,14 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	Conv, _ := json.MarshalIndent(transaction, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
+}
+
+func updateInternalState(id uuid.UUID, newState string) error {
+	db := OpenConnection()
+	defer db.Close()
+
+	_, err := db.Exec(`UPDATE withdraw_history SET internal_state = $2 WHERE id = $1`, id, newState)
+	return err
 }
 
 func GetPendingWithdrawalTx(w http.ResponseWriter, r *http.Request) {
