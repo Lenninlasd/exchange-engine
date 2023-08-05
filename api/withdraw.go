@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -23,6 +24,8 @@ const (
 	WITHDRAW_STATUS_BROADCASTED = "broadcasted"
 	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
 	WITHDRAW_STATUS_CANCELED    = "canceled"
+
+	WITHDRAW_INTERNAL_STATE = "InsufficientFunds"
 
 	TIME_TO_FECHT_MEMPOOL = 1
 )
@@ -76,6 +79,14 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	transaction, err := SendWithdrawToWallet(withdrawId, withdraw, recomendedFees.FastestFee)
 	if err != nil {
+		if err.Error() == WITHDRAW_INTERNAL_STATE {
+			updateError := updateInternalState(withdrawId, WITHDRAW_INTERNAL_STATE)
+			if updateError != nil {
+				cancelWithdrawalTx(withdrawId)
+				panic(updateError)
+			}
+			return
+		}
 		cancelWithdrawalTx(withdrawId)
 		panic(err)
 	}
@@ -92,17 +103,25 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", string(Conv))
 }
 
+func updateInternalState(id uuid.UUID, newState string) error {
+	db := OpenConnection()
+	defer db.Close()
+
+	_, err := db.Exec(`UPDATE withdraw_history SET internal_state = $2 WHERE id = $1`, id, newState)
+	return err
+}
+
 func GetPendingWithdrawalTx(w http.ResponseWriter, r *http.Request) {
 	db := OpenConnection()
 	userId := mux.Vars(r)["userid"]
 	var tx types.BroadcastedTx
 
 	err := db.QueryRow(
-		`SELECT txid, address, time_stamp, status, confirmations, blockheight
+		`SELECT txid, address, amount, time_stamp, status, confirmations, blockheight
 		FROM public.withdraw_history
-		WHERE user_id=$1 AND (status=$2 OR status=$3) ORDER BY time_stamp DESC LIMIT 1`,
-		userId, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED).Scan(
-		&tx.Txid, &tx.Address, &tx.Timestamp, &tx.Status, &tx.Confirmations, &tx.BlockHeight)
+		WHERE user_id=$1 AND (status=$2 OR status=$3 OR status=$4) ORDER BY time_stamp DESC LIMIT 1`,
+		userId, WITHDRAW_STATUS_INICIALIZED, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED).Scan(
+		&tx.Txid, &tx.Address, &tx.Amount, &tx.Timestamp, &tx.Status, &tx.Confirmations, &tx.BlockHeight)
 
 	if err != nil && err != sql.ErrNoRows {
 		panic(err)
@@ -241,6 +260,17 @@ func SendWithdrawToWallet(withdrawId uuid.UUID, withdraw types.Withdraw, feeRate
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
+		return types.Transaction{}, err
+	}
+
+	body, _ := ioutil.ReadAll(response.Body)
+
+	if response.StatusCode >= 400 || response.StatusCode >= 500 {
+		var responseBody struct {
+			Error string `json:"error"`
+		}
+		json.Unmarshal(body, &responseBody)
+		err := errors.New(responseBody.Error)
 		return types.Transaction{}, err
 	}
 

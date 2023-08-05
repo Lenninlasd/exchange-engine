@@ -22,6 +22,7 @@ func (withdraw *Withdraw) ToJSON() []byte {
 type BroadcastedTx struct {
 	Txid          string    `json:"txid"`
 	Address       string    `json:"address"`
+	Amount        uint64    `json:"amount"`
 	Status        string    `json:"status"`
 	Confirmations uint64    `json:"confirmations"`
 	BlockHeight   uint64    `json:"blockheight"`
