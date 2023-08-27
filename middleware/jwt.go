@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // CustomClaims contains custom data we want from the token.
@@ -81,20 +83,57 @@ func EnsureValidToken() func(next http.Handler) http.Handler {
 	}
 }
 
-func GetTokenFromHeader(headers http.Header) (string, error) {
+func GetTokenFromHeader(headers http.Header) string {
 	authHeader := headers.Get("Authorization")
 	if authHeader == "" {
-		return "", errors.New("Authorization header missing")
+		return ""
 	}
 
 	tokenParts := strings.Split(authHeader, " ")
 	if len(tokenParts) != 2 {
-		return "", errors.New("Invalid authorization header")
+		return ""
 	}
 
 	if strings.ToLower(tokenParts[0]) != "bearer" {
-		return "", errors.New("Unsupported authorization scheme")
+		return ""
 	}
 
-	return tokenParts[1], nil
+	return tokenParts[1]
+}
+
+func ValidateTokenMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Your JWT secret key
+		secret := []byte(os.Getenv("JWT_SECRET"))
+
+		// Sample JWT token to validate (replace with your actual token)
+		// tokenString := "eyJhbGciOiJIUzI1NiIsImtpZCI6IlBQMzBFQUxvaTlvSHliY0oiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNjkyMDI2OTYzLCJpYXQiOjE2OTIwMjMzNjMsImlzcyI6Imh0dHBzOi8vaHR0cHM6Ly9zeWp1c3Zna3pianpqYmdjcGpqZy5zdXBhYmFzZS5jby9hdXRoL3YxIiwic3ViIjoiY2U5ODk2MTQtZTgzMC00Yzk0LTg5NzYtYjI1ZGQxMjQ4NzQzIiwiZW1haWwiOiJsZW5uaW5sYXNkQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnt9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6Im1hZ2ljbGluayIsInRpbWVzdGFtcCI6MTY5MjAyMzM2M31dLCJzZXNzaW9uX2lkIjoiZGE3NGZhNWUtYzhlOC00ZDc3LWI1ZDAtZWE1N2E4YzNhNDkxIn0.9qnf4Y4BE-vxwMaq3CaK5eEMGKRfVYwwSGdP4gOT6kI"
+		tokenString := GetTokenFromHeader(r.Header)
+		if tokenString == "" {
+			http.Error(w, "Missing JWT token", http.StatusUnauthorized)
+			return
+		}
+		// Parse the token using the provided secret
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return secret, nil
+		})
+
+		if err != nil {
+			if errors.Is(err, jwt.ErrTokenMalformed) {
+				http.Error(w, "Invalid JWT token", http.StatusUnauthorized)
+			} else if errors.Is(err, jwt.ErrTokenSignatureInvalid) {
+				http.Error(w, "Invalid signature", http.StatusInternalServerError)
+			} else if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
+				http.Error(w, "Token is expired or not yet valid", http.StatusUnauthorized)
+			} else {
+				fmt.Println("Invalid JWT token", err)
+			}
+		}
+
+		if token.Valid {
+			fmt.Println("Token is valid")
+			next.ServeHTTP(w, r)
+		}
+		return
+	})
 }

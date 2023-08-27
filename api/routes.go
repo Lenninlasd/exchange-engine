@@ -11,6 +11,10 @@ import (
 
 func Routes() {
 	router := mux.NewRouter().StrictSlash(true)
+	supaRouter := router.PathPrefix("/supa").Subrouter()
+	supaRouter.Use(middleware.ValidateTokenMiddleware)
+	supaRouter.HandleFunc("/", homeLink).Methods("GET")
+
 	privateRouter := router.PathPrefix("/prv").Subrouter()
 	privateRouter.Use(middleware.EnsureValidToken())
 
@@ -41,6 +45,7 @@ func Routes() {
 	origins := handlers.AllowedOrigins([]string{
 		"http://localhost:3000",
 		"https://zener-fe.vercel.app",
+		"https://zenerbtc.com",
 	})
 	log.Fatal(http.ListenAndServe(":8080", handlers.CORS(headers, methods, origins)(router)))
 }

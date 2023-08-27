@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -81,72 +82,14 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 }
 
-// func GetOneUser(w http.ResponseWriter, r *http.Request) {
-// 	UserId := mux.Vars(r)["id"]
-// 	var users []types.UserC
-// 	m := map[string]interface{}{}
-
-// 	iter := Session.Query("SELECT * FROM users WHERE id=?", UserId).Iter()
-// 	for iter.MapScan(m) {
-// 		users = append(users, types.UserC{
-// 			Id:		m["id"].(gocql.UUID),
-// 			Email:	m["email"].(string),
-// 		})
-// 		m = map[string]interface{}{}
-// 	}
-
-// 	Conv, _ := json.MarshalIndent(users, "", " ")
-// 	fmt.Fprintf(w, "%s", string(Conv))
-
-// }
-
-// func ExistUser(UserId gocql.UUID) bool {
-// 	var Count int
-// 	err := Session.Query("SELECT count(*) FROM users WHERE id=?", UserId).Scan(&Count)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	return Count == 1
-// }
-
-// func CountAllUsers(w http.ResponseWriter, r *http.Request) {
-
-// 	var Count string
-// 	err := Session.Query("SELECT count(*) FROM users").Scan(&Count)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	fmt.Fprintf(w, "%s ", Count)
-
-// }
-// func DeleteOneUser(w http.ResponseWriter, r *http.Request) {
-// 	UserId := mux.Vars(r)["id"]
-// 	err := Session.Query("DELETE FROM users WHERE id = ?", UserId).Exec();
-// 	if err != nil {
-// 		fmt.Println("Error while deleting")
-// 		fmt.Println(err)
-// 	}
-// 	fmt.Fprintf(w, "deleted successfully the user num %s ", UserId)
-// }
-
-// func DeleteAllUsers(w http.ResponseWriter, r *http.Request) {
-// 	err := Session.Query("TRUNCATE users").Exec();
-// 	if err != nil {
-// 		fmt.Println("Error while deleting all users")
-// 		fmt.Println(err)
-// 	}
-// 	fmt.Fprintf(w, "deleted all successfully")
-
-// }
-
 func GetUserFromHeader(r *http.Request) (types.Auth0User, error) {
 	var auth0User types.Auth0User
-	accessToken, err := middleware.GetTokenFromHeader(r.Header)
-	if err != nil {
-		return auth0User, err
+	accessToken := middleware.GetTokenFromHeader(r.Header)
+	if accessToken == "" {
+		return auth0User, errors.New("Authorization header missing")
 	}
 
-	auth0User, err = getAuth0UserFromToken(accessToken)
+	auth0User, err := getAuth0UserFromToken(accessToken)
 	if err != nil {
 		return auth0User, err
 	}
