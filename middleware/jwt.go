@@ -107,7 +107,6 @@ func ValidateTokenMiddleware(next http.Handler) http.Handler {
 		secret := []byte(os.Getenv("JWT_SECRET"))
 
 		// Sample JWT token to validate (replace with your actual token)
-		// tokenString := "eyJhbGciOiJIUzI1NiIsImtpZCI6IlBQMzBFQUxvaTlvSHliY0oiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNjkyMDI2OTYzLCJpYXQiOjE2OTIwMjMzNjMsImlzcyI6Imh0dHBzOi8vaHR0cHM6Ly9zeWp1c3Zna3pianpqYmdjcGpqZy5zdXBhYmFzZS5jby9hdXRoL3YxIiwic3ViIjoiY2U5ODk2MTQtZTgzMC00Yzk0LTg5NzYtYjI1ZGQxMjQ4NzQzIiwiZW1haWwiOiJsZW5uaW5sYXNkQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnt9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6Im1hZ2ljbGluayIsInRpbWVzdGFtcCI6MTY5MjAyMzM2M31dLCJzZXNzaW9uX2lkIjoiZGE3NGZhNWUtYzhlOC00ZDc3LWI1ZDAtZWE1N2E4YzNhNDkxIn0.9qnf4Y4BE-vxwMaq3CaK5eEMGKRfVYwwSGdP4gOT6kI"
 		tokenString := GetTokenFromHeader(r.Header)
 		if tokenString == "" {
 			http.Error(w, "Missing JWT token", http.StatusUnauthorized)
