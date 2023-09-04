@@ -14,6 +14,7 @@ func Routes() {
 	supaRouter := router.PathPrefix("/supa").Subrouter()
 	supaRouter.Use(middleware.ValidateTokenMiddleware)
 	supaRouter.HandleFunc("/", homeLink).Methods("GET")
+	supaRouter.HandleFunc("/signup", CreateUserAfterSignUpSupa).Methods("POST")
 
 	privateRouter := router.PathPrefix("/prv").Subrouter()
 	privateRouter.Use(middleware.EnsureValidToken())
