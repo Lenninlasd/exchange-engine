@@ -144,7 +144,6 @@ type MyCustomClaims struct {
 
 // given a token string parse the jwt and extract the clains
 func GetClainsFromToken(header http.Header) (*MyCustomClaims, error) {
-	// tokenString := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIiLCJpc3MiOiJ0ZXN0IiwiYXVkIjoic2luZ2xlIn0.QAWg1vGvnqRuCFTMcPkjZljXHh8U3L_qUjszOtQbeaA"
 	secret := []byte(os.Getenv("JWT_SECRET"))
 
 	tokenString := GetTokenFromHeader(header)

@@ -15,6 +15,8 @@ func Routes() {
 	supaRouter.Use(middleware.ValidateTokenMiddleware)
 	supaRouter.HandleFunc("/", homeLink).Methods("GET")
 	supaRouter.HandleFunc("/signup", CreateUserAfterSignUpSupa).Methods("POST")
+	supaRouter.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
+	supaRouter.HandleFunc("/exchangerate/BTCCOP", ExchangerateApi).Methods("GET")
 
 	privateRouter := router.PathPrefix("/prv").Subrouter()
 	privateRouter.Use(middleware.EnsureValidToken())
@@ -22,7 +24,6 @@ func Routes() {
 	router.HandleFunc("/", homeLink).Methods("GET")
 	router.HandleFunc("/wompi/event", UptateFiatDeposit).Methods("POST")
 
-	privateRouter.HandleFunc("/users", GetAllUsers).Methods("GET") // TODO: only for admin.
 	privateRouter.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
 	privateRouter.HandleFunc("/pendingWithdrawalTx/{userid}", GetPendingWithdrawalTx).Methods("GET")
 	privateRouter.HandleFunc("/reference", GetDepositReference).

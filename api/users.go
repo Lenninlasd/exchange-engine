@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -99,29 +98,6 @@ func CreateUserAfterSignUpSupa(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-}
-
-func GetAllUsers(w http.ResponseWriter, r *http.Request) {
-	db := OpenConnection()
-
-	rows, err := db.Query("SELECT * FROM users")
-	if err != nil {
-		panic(err)
-	}
-
-	var users []types.User
-	for rows.Next() {
-		var user types.User
-		err := rows.Scan(&user.Id, &user.Email)
-		CheckError(err)
-		users = append(users, user)
-	}
-
-	Conv, _ := json.MarshalIndent(users, "", " ")
-	fmt.Fprintf(w, "%s", string(Conv))
-
-	defer rows.Close()
-	defer db.Close()
 }
 
 func GetUserFromHeader(r *http.Request) (types.Auth0User, error) {
