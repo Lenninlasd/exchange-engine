@@ -41,7 +41,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	withdraw.FromJSON(reqBody)
 
-	// TODO: Get userId from authentication
+	// TODO: Get userId from authentication (claims)
 	isUnable := checkUserWithdrawalStatus(withdraw.UserId)
 	if isUnable {
 		w.WriteHeader(http.StatusBadRequest)
@@ -113,6 +113,7 @@ func updateInternalState(id uuid.UUID, newState string) error {
 
 func GetPendingWithdrawalTx(w http.ResponseWriter, r *http.Request) {
 	db := OpenConnection()
+	// TODO: use claims
 	userId := mux.Vars(r)["userid"]
 	var tx types.BroadcastedTx
 
