@@ -136,3 +136,29 @@ func ValidateTokenMiddleware(next http.Handler) http.Handler {
 		return
 	})
 }
+
+type MyCustomClaims struct {
+	Email string `json:"email"`
+	jwt.RegisteredClaims
+}
+
+// given a token string parse the jwt and extract the clains
+func GetClainsFromToken(header http.Header) (*MyCustomClaims, error) {
+	secret := []byte(os.Getenv("JWT_SECRET"))
+
+	tokenString := GetTokenFromHeader(header)
+
+	token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return secret, nil
+	})
+
+	claims, ok := token.Claims.(*MyCustomClaims)
+
+	if ok && token.Valid {
+		fmt.Printf("%v %v", claims.Email, claims.RegisteredClaims.Issuer)
+		return claims, nil
+	}
+
+	fmt.Println(err)
+	return claims, err
+}

@@ -25,7 +25,7 @@ const (
 	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
 	WITHDRAW_STATUS_CANCELED    = "canceled"
 
-	WITHDRAW_INTERNAL_STATE = "InsufficientFunds"
+	WITHDRAW_INSUFFICIENT_FUNDS = "InsufficientFunds"
 
 	TIME_TO_FECHT_MEMPOOL = 1
 )
@@ -41,7 +41,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	withdraw.FromJSON(reqBody)
 
-	// TODO: Get userId from authentication
+	// TODO: Get userId from authentication (claims)
 	isUnable := checkUserWithdrawalStatus(withdraw.UserId)
 	if isUnable {
 		w.WriteHeader(http.StatusBadRequest)
@@ -79,8 +79,8 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	transaction, err := SendWithdrawToWallet(withdrawId, withdraw, recomendedFees.FastestFee)
 	if err != nil {
-		if err.Error() == WITHDRAW_INTERNAL_STATE {
-			updateError := updateInternalState(withdrawId, WITHDRAW_INTERNAL_STATE)
+		if err.Error() == WITHDRAW_INSUFFICIENT_FUNDS {
+			updateError := updateInternalState(withdrawId, WITHDRAW_INSUFFICIENT_FUNDS)
 			if updateError != nil {
 				cancelWithdrawalTx(withdrawId)
 				panic(updateError)
@@ -113,6 +113,7 @@ func updateInternalState(id uuid.UUID, newState string) error {
 
 func GetPendingWithdrawalTx(w http.ResponseWriter, r *http.Request) {
 	db := OpenConnection()
+	// TODO: use claims
 	userId := mux.Vars(r)["userid"]
 	var tx types.BroadcastedTx
 
@@ -263,12 +264,11 @@ func SendWithdrawToWallet(withdrawId uuid.UUID, withdraw types.Withdraw, feeRate
 		return types.Transaction{}, err
 	}
 
-	body, _ := ioutil.ReadAll(response.Body)
-
 	if response.StatusCode >= 400 || response.StatusCode >= 500 {
 		var responseBody struct {
 			Error string `json:"error"`
 		}
+		body, _ := ioutil.ReadAll(response.Body)
 		json.Unmarshal(body, &responseBody)
 		err := errors.New(responseBody.Error)
 		return types.Transaction{}, err

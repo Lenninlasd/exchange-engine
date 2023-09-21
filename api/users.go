@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -59,27 +58,46 @@ func CreateUserAfterSignUp(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func GetAllUsers(w http.ResponseWriter, r *http.Request) {
-	db := OpenConnection()
-
-	rows, err := db.Query("SELECT * FROM users")
+func CreateUserAfterSignUpSupa(w http.ResponseWriter, r *http.Request) {
+	claims, err := middleware.GetClainsFromToken(r.Header)
 	if err != nil {
 		panic(err)
 	}
 
-	var users []types.User
-	for rows.Next() {
-		var user types.User
-		err := rows.Scan(&user.Id, &user.Email)
-		CheckError(err)
-		users = append(users, user)
+	db := OpenConnection()
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err)
 	}
 
-	Conv, _ := json.MarshalIndent(users, "", " ")
-	fmt.Fprintf(w, "%s", string(Conv))
+	_, err = tx.Exec(`
+		INSERT INTO users (id, email) SELECT $1, $2
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $1)`, claims.Subject, claims.Email)
+	if err != nil {
+		tx.Rollback()
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err)
+	}
 
-	defer rows.Close()
-	defer db.Close()
+	_, err = tx.Exec(`
+		INSERT INTO btcbalances (user_id, amount) SELECT $1, $2
+		WHERE NOT EXISTS (SELECT 1 FROM btcbalances WHERE user_id = $1)`, claims.Subject, 0)
+	if err != nil {
+		tx.Rollback()
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func GetUserFromHeader(r *http.Request) (types.Auth0User, error) {
