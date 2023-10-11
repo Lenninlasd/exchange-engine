@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/lenninlasd/Engine/constants"
+	"github.com/lenninlasd/Engine/middleware"
 	"github.com/lenninlasd/Engine/types"
 )
 
@@ -111,9 +112,35 @@ func updateInternalState(id uuid.UUID, newState string) error {
 	return err
 }
 
+func GetPendingWithdrawalTxSupa(w http.ResponseWriter, r *http.Request) {
+	db := OpenConnection()
+
+	claims, err := middleware.GetClainsFromToken(r.Header)
+	if err != nil {
+		panic(err)
+	}
+
+	var tx types.BroadcastedTx
+
+	err = db.QueryRow(
+		`SELECT txid, address, amount, time_stamp, status, confirmations, blockheight
+		FROM public.withdraw_history
+		WHERE user_id=$1 AND (status=$2 OR status=$3 OR status=$4) ORDER BY time_stamp DESC LIMIT 1`,
+		claims.Subject, WITHDRAW_STATUS_INICIALIZED, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED).Scan(
+		&tx.Txid, &tx.Address, &tx.Amount, &tx.Timestamp, &tx.Status, &tx.Confirmations, &tx.BlockHeight)
+
+	if err != nil && err != sql.ErrNoRows {
+		panic(err)
+	}
+
+	defer db.Close()
+
+	Conv, _ := json.MarshalIndent(tx, "", " ")
+	fmt.Fprintf(w, "%s", Conv)
+}
+
 func GetPendingWithdrawalTx(w http.ResponseWriter, r *http.Request) {
 	db := OpenConnection()
-	// TODO: use claims
 	userId := mux.Vars(r)["userid"]
 	var tx types.BroadcastedTx
 
