@@ -15,7 +15,7 @@ func Routes() {
 	supaRouter.Use(middleware.ValidateTokenMiddleware)
 	supaRouter.HandleFunc("/", homeLink).Methods("GET")
 	supaRouter.HandleFunc("/signup", CreateUserAfterSignUpSupa).Methods("POST")
-	supaRouter.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
+	supaRouter.HandleFunc("/balance", GetUserBalanceFromHttpSupa).Methods("GET")
 	supaRouter.HandleFunc("/exchangerate/BTCCOP", ExchangerateApi).Methods("GET")
 	supaRouter.HandleFunc("/mempool/transaction-fee", GetTransactionFee).Methods("GET")
 	supaRouter.HandleFunc("/mempool/transaction-fee/{address}", GetTransactionFee).Methods("GET")
@@ -23,7 +23,7 @@ func Routes() {
 		Queries("amount", "{amount:[0-9]+}", "currency", "{currency:[A-Za-z]+}").
 		Methods("GET")
 	supaRouter.HandleFunc("/deposit", CreateFiatDepositSupa).Methods("POST")
-	supaRouter.HandleFunc("/pendingWithdrawalTx/{userid}", GetPendingWithdrawalTx).Methods("GET")
+	supaRouter.HandleFunc("/pending-withdrawal-tx", GetPendingWithdrawalTxSupa).Methods("GET")
 	supaRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
 
 	privateRouter := router.PathPrefix("/prv").Subrouter()
