@@ -33,6 +33,7 @@ const (
 
 func Withdraw(w http.ResponseWriter, r *http.Request) {
 	var withdraw types.Withdraw
+	claims, err := middleware.GetClainsFromToken(r.Header)
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -43,14 +44,14 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 	withdraw.FromJSON(reqBody)
 
 	// TODO: Get userId from authentication (claims)
-	isUnable := checkUserWithdrawalStatus(withdraw.UserId)
+	isUnable := checkUserWithdrawalStatus(claims.Subject)
 	if isUnable {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "%s", "User is not able to withdraw")
 		return
 	}
 
-	balance, err := GetUserBalance(withdraw.UserId)
+	balance, err := GetUserBalance(claims.Subject)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			userNotExist(w)
@@ -65,7 +66,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	withdrawId := uuid.New()
-	err = initWithdrawTx(withdrawId, withdraw)
+	err = initWithdrawTx(withdrawId, withdraw, claims.Subject)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		panic(err)
@@ -176,12 +177,12 @@ func checkUserWithdrawalStatus(UserId string) bool {
 	return exists
 }
 
-func initWithdrawTx(withdrawId uuid.UUID, withdraw types.Withdraw) error {
+func initWithdrawTx(withdrawId uuid.UUID, withdraw types.Withdraw, UserId string) error {
 	db := OpenConnection()
 
 	_, err := db.Exec(
 		`INSERT INTO withdraw_history (id, user_id, amount, address, status) VALUES ($1, $2, $3, $4, $5)`,
-		withdrawId, withdraw.UserId, withdraw.Amount, withdraw.Address, WITHDRAW_STATUS_INICIALIZED,
+		withdrawId, UserId, withdraw.Amount, withdraw.Address, WITHDRAW_STATUS_INICIALIZED,
 	)
 
 	defer db.Close()

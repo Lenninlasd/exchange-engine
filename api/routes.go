@@ -23,7 +23,7 @@ func Routes() {
 		Queries("amount", "{amount:[0-9]+}", "currency", "{currency:[A-Za-z]+}").
 		Methods("GET")
 	supaRouter.HandleFunc("/deposit", CreateFiatDepositSupa).Methods("POST")
-	supaRouter.HandleFunc("/pendingWithdrawalTx", GetPendingWithdrawalTxSupa).Methods("GET")
+	supaRouter.HandleFunc("/pending-withdrawal-tx", GetPendingWithdrawalTxSupa).Methods("GET")
 	supaRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
 
 	privateRouter := router.PathPrefix("/prv").Subrouter()

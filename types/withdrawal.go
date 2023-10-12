@@ -6,7 +6,6 @@ import (
 )
 
 type Withdraw struct {
-	UserId  string `json:"user_id"`
 	Amount  uint64 `json:"amount"`
 	Address string `json:"address"`
 }
