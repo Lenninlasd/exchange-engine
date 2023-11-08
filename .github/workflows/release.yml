@@ -53,25 +53,25 @@ jobs:
           script: |
             docker pull registry.digitalocean.com/zener/engine:${{ env.TAG_NAME }}
 
-            if [ "$(docker ps -aq -f name=engine)" ]; then
-              echo "Stopping and removing the existing engine container..."
-              docker stop engine
-              docker rm engine
+            if [ "$(docker ps -aq -f name=engine_prod)" ]; then
+              echo "Stopping and removing the existing engine_prod container..."
+              docker stop engine_prod
+              docker rm engine_prod
             else
               echo "No running engine container found."
             fi
 
             docker run -d \
-              --name engine \
-              --network zener_mynetwork \
-              -p 8080:8080 \
+              --name engine_prod \
+              --network zener_prodnetwork \
+              -p 8282:8282 \
               -e AUTH0_DOMAIN=${{ vars.AUTH0_DOMAIN }} \
               -e AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }} \
+              -e OPENEXCHANGE_APP_ID=${{ secrets.OPENEXCHANGE_APP_ID }} \
               -e WOMPI_INTEGRITY=${{ secrets.WOMPI_INTEGRITY }} \
               -e WOMPI_EVENT=${{ secrets.WOMPI_EVENT }} \
-              -e OPENEXCHANGE_APP_ID=${{ secrets.OPENEXCHANGE_APP_ID }} \
               -e WITHDRAWAL_INTEGRITY=${{ secrets.WITHDRAWAL_INTEGRITY }} \
               -e POSTGRES_PASS=${{ secrets.POSTGRES_PASS }} \
-              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              -e JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }} \
               registry.digitalocean.com/zener/engine:${{ env.TAG_NAME }}
 
