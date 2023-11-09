@@ -3,6 +3,7 @@ package api
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -57,5 +58,9 @@ func Routes() {
 		"https://zener-fe.vercel.app",
 		"https://zenerbtc.com",
 	})
-	log.Fatal(http.ListenAndServe(":8080", handlers.CORS(headers, methods, origins)(router)))
+	var port = os.Getenv("PORT")
+	if port == "" {
+		port = ":8080"
+	}
+	log.Fatal(http.ListenAndServe(port, handlers.CORS(headers, methods, origins)(router)))
 }
