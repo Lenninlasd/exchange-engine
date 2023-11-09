@@ -41,7 +41,7 @@ jobs:
     needs: build
     env:
       TAG_NAME: ${{ github.event.release.tag_name }}
-      PORT: ":8282"
+      ENGINE_PORT: ":8282"
     steps:
       - uses: actions/checkout@v3
 
@@ -66,7 +66,7 @@ jobs:
               --name engine_prod \
               --network zener_prodnetwork \
               -p 8282:8282 \
-              -e PORT=${{ env.PORT }} \
+              -e ENGINE_PORT=${{ env.ENGINE_PORT }} \
               -e AUTH0_DOMAIN=${{ vars.AUTH0_DOMAIN }} \
               -e AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }} \
               -e OPENEXCHANGE_APP_ID=${{ secrets.OPENEXCHANGE_APP_ID }} \

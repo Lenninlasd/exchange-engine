@@ -58,7 +58,7 @@ func Routes() {
 		"https://zener-fe.vercel.app",
 		"https://zenerbtc.com",
 	})
-	var port = os.Getenv("PORT")
+	var port = os.Getenv("ENGINE_PORT")
 	if port == "" {
 		port = ":8080"
 	}
