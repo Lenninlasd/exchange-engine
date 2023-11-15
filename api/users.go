@@ -13,7 +13,7 @@ import (
 )
 
 func homeLink(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Restful API using Go and Postgres!")
+	fmt.Fprintf(w, "Restful API using Go and Postgres! from new version")
 }
 
 func CreateUserAfterSignUp(w http.ResponseWriter, r *http.Request) {
