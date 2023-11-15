@@ -32,6 +32,7 @@ func Routes() {
 
 	router.HandleFunc("/", homeLink).Methods("GET")
 	router.HandleFunc("/wompi/event", UptateFiatDeposit).Methods("POST")
+	router.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
 
 	privateRouter.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
 	privateRouter.HandleFunc("/pendingWithdrawalTx/{userid}", GetPendingWithdrawalTx).Methods("GET")
