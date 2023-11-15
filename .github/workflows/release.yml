@@ -64,7 +64,7 @@ jobs:
 
             docker run -d \
               --name engine_prod \
-              --network zener_prodnetwork \
+              --network zener_mynetwork \
               -p 8282:8282 \
               -e ENGINE_PORT=${{ env.ENGINE_PORT }} \
               -e AUTH0_DOMAIN=${{ vars.AUTH0_DOMAIN }} \
