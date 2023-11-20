@@ -75,6 +75,6 @@ jobs:
               -e WITHDRAWAL_INTEGRITY=${{ secrets.WITHDRAWAL_INTEGRITY }} \
               -e POSTGRES_PASS=${{ secrets.POSTGRES_PASS }} \
               -e JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }} \
-              -e WALLET_ADDRESS=http://wallet:8002 \
+              -e WALLET_ADDRESS=http://wallet_prod:8002 \
               registry.digitalocean.com/zener/engine:${{ env.TAG_NAME }}
 
