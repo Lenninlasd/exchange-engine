@@ -277,7 +277,7 @@ func SendWithdrawToWallet(withdrawId uuid.UUID, withdraw types.Withdraw, feeRate
 		"checksum":  checksum,
 	})
 
-	request, err := http.NewRequest("POST", "http://wallet:8000/withdraw", bytes.NewBuffer(requestBody))
+	request, err := http.NewRequest("POST", fmt.Sprintf("%s/withdraw", constants.WALLET_ADDRESS), bytes.NewBuffer(requestBody))
 	if err != nil {
 		return types.Transaction{}, err
 	}

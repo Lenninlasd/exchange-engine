@@ -79,7 +79,7 @@ func GetTransactionFee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := fmt.Sprintf("http://wallet:8000/transactiondetails?address=%s&amount=%d&fee_rate=%f", address, 600, recomendedFees.FastestFee)
+	url := fmt.Sprintf("%s/transactiondetails?address=%s&amount=%d&fee_rate=%f", constants.WALLET_ADDRESS, address, 600, recomendedFees.FastestFee)
 	resp, err := http.Get(url)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
