@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	host   = "postgres"
 	user   = "postgres"
 	dbname = "engine"
 )
 
+var host = os.Getenv("POSTGRES_HOST")
 var password = os.Getenv("POSTGRES_PASS")
 var port = os.Getenv("POSTGRES_PORT")
 
