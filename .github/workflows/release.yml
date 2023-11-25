@@ -42,6 +42,7 @@ jobs:
     env:
       TAG_NAME: ${{ github.event.release.tag_name }}
       ENGINE_PORT: ":8282"
+      POSTGRES_PORT: "5433"
     steps:
       - uses: actions/checkout@v3
 
@@ -67,13 +68,13 @@ jobs:
               --network zener_mynetwork \
               -p 8282:8282 \
               -e ENGINE_PORT=${{ env.ENGINE_PORT }} \
-              -e AUTH0_DOMAIN=${{ vars.AUTH0_DOMAIN }} \
-              -e AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }} \
+              -e POSTGRES_PORT=${{ env.POSTGRES_PORT }} \
               -e OPENEXCHANGE_APP_ID=${{ secrets.OPENEXCHANGE_APP_ID }} \
               -e WOMPI_INTEGRITY=${{ secrets.WOMPI_INTEGRITY }} \
               -e WOMPI_EVENT=${{ secrets.WOMPI_EVENT }} \
               -e WITHDRAWAL_INTEGRITY=${{ secrets.WITHDRAWAL_INTEGRITY }} \
               -e POSTGRES_PASS=${{ secrets.POSTGRES_PASS }} \
               -e JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }} \
+              -e WALLET_ADDRESS=http://wallet_prod:8002 \
               registry.digitalocean.com/zener/engine:${{ env.TAG_NAME }}
 

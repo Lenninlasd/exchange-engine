@@ -39,6 +39,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    env:
+      POSTGRES_PORT: "5432"
     steps:
       - uses: actions/checkout@v3
 
@@ -63,13 +65,13 @@ jobs:
               --name engine \
               --network zener_mynetwork \
               -p 8080:8080 \
-              -e AUTH0_DOMAIN=${{ vars.AUTH0_DOMAIN }} \
-              -e AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }} \
+              -e POSTGRES_PORT=${{ env.POSTGRES_PORT }} \
               -e OPENEXCHANGE_APP_ID=${{ secrets.OPENEXCHANGE_APP_ID }} \
               -e WOMPI_INTEGRITY=${{ secrets.TEST_WOMPI_INTEGRITY }} \
               -e WOMPI_EVENT=${{ secrets.TEST_WOMPI_EVENT }} \
               -e WITHDRAWAL_INTEGRITY=${{ secrets.TEST_WITHDRAWAL_INTEGRITY }} \
               -e POSTGRES_PASS=${{ secrets.TEST_POSTGRES_PASS }} \
               -e JWT_SECRET=${{ secrets.TEST_SUPABASE_JWT_SECRET }} \
+              -e WALLET_ADDRESS=http://wallet:8000 \
               registry.digitalocean.com/zener/engine:dev
 
