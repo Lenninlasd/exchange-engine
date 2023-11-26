@@ -43,7 +43,7 @@ jobs:
       TAG_NAME: ${{ github.event.release.tag_name }}
       ENGINE_PORT: ":8282"
       POSTGRES_HOST: "postgres_prod"
-      POSTGRES_PORT: "5433"
+      POSTGRES_PORT: "5432"
     steps:
       - uses: actions/checkout@v3
 
