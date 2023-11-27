@@ -77,6 +77,5 @@ jobs:
               -e WOMPI_EVENT=${{ secrets.WOMPI_EVENT }} \
               -e WITHDRAWAL_INTEGRITY=${{ secrets.WITHDRAWAL_INTEGRITY }} \
               -e JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }} \
-              -e WALLET_ADDRESS=http://wallet_prod:8002 \
               registry.digitalocean.com/zener/engine:${{ env.TAG_NAME }}
 
