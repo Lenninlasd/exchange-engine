@@ -27,26 +27,8 @@ func Routes() {
 	supaRouter.HandleFunc("/pending-withdrawal-tx", GetPendingWithdrawalTxSupa).Methods("GET")
 	supaRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
 
-	privateRouter := router.PathPrefix("/prv").Subrouter()
-	privateRouter.Use(middleware.EnsureValidToken())
-
 	router.HandleFunc("/", homeLink).Methods("GET")
 	router.HandleFunc("/wompi/event", UptateFiatDeposit).Methods("POST")
-	router.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
-
-	privateRouter.HandleFunc("/balance/{userid}", GetUserBalanceFromHttp).Methods("GET")
-	privateRouter.HandleFunc("/pendingWithdrawalTx/{userid}", GetPendingWithdrawalTx).Methods("GET")
-	privateRouter.HandleFunc("/reference", GetDepositReference).
-		Queries("amount", "{amount:[0-9]+}", "currency", "{currency:[A-Za-z]+}").
-		Methods("GET")
-	privateRouter.HandleFunc("/mempool/transaction-fee", GetTransactionFee).Methods("GET")
-	privateRouter.HandleFunc("/mempool/transaction-fee/{address}", GetTransactionFee).Methods("GET")
-
-	privateRouter.HandleFunc("/exchangerate/BTCCOP", ExchangerateApi).Methods("GET")
-
-	privateRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
-	privateRouter.HandleFunc("/signup", CreateUserAfterSignUp).Methods("POST")
-	privateRouter.HandleFunc("/deposit", CreateFiatDeposit).Methods("POST")
 
 	headers := handlers.AllowedHeaders([]string{
 		"X-Requested-With",

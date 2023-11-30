@@ -65,36 +65,6 @@ func GetDepositReference(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", Conv)
 }
 
-func CreateFiatDeposit(w http.ResponseWriter, r *http.Request) {
-	auth0User, err := GetUserFromHeader(r)
-	if err != nil {
-		panic(err)
-	}
-
-	var depositTx types.DepositTx
-
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintf(w, "wrong data")
-	}
-
-	depositTx.FromJSON(reqBody)
-
-	db := OpenConnection()
-	_, err = db.Exec(`
-		INSERT INTO fiat_deposit_tx (reference, amount_in_cents, status, user_id)
-		VALUES ($1, $2, $3, $4)`, depositTx.Reference, depositTx.AmountInCents, PENDING, auth0User.Sub)
-
-	defer db.Close()
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		panic(err)
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
 func CreateFiatDepositSupa(w http.ResponseWriter, r *http.Request) {
 	userClaims, err := middleware.GetClainsFromToken(r.Header)
 	if err != nil {
