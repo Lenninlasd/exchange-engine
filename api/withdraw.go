@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lenninlasd/Engine/constants"
 	"github.com/lenninlasd/Engine/middleware"
+	"github.com/lenninlasd/Engine/telegrambot"
 	"github.com/lenninlasd/Engine/types"
 )
 
@@ -42,7 +43,6 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	withdraw.FromJSON(reqBody)
 
-	// TODO: Get userId from authentication (claims)
 	isUnable := checkUserWithdrawalStatus(claims.Subject)
 	if isUnable {
 		w.WriteHeader(http.StatusBadRequest)
@@ -81,6 +81,12 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 	transaction, err := SendWithdrawToWallet(withdrawId, withdraw, recomendedFees.FastestFee)
 	if err != nil {
 		if err.Error() == WITHDRAW_INSUFFICIENT_FUNDS {
+			// TODO: send telegram notification: WITHDRAW INSUFFICIENT FUNDS
+			// TODO: user1: 83y42384,
+			// TODO: user2: 83y42384,
+			// TODO: fondos restantes: 0.0212
+			// this function has to be non-blocking
+			telegrambot.InsufficientFundsAlert()
 			updateError := updateInternalState(withdrawId, WITHDRAW_INSUFFICIENT_FUNDS)
 			if updateError != nil {
 				cancelWithdrawalTx(withdrawId)
