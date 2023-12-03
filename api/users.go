@@ -16,48 +16,6 @@ func homeLink(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Restful API using Go and Postgres! from new version")
 }
 
-func CreateUserAfterSignUp(w http.ResponseWriter, r *http.Request) {
-	auth0User, err := GetUserFromHeader(r)
-	if err != nil {
-		panic(err)
-	}
-
-	db := OpenConnection()
-	defer db.Close()
-
-	tx, err := db.Begin()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		panic(err)
-	}
-
-	_, err = tx.Exec(`
-		INSERT INTO users (id, email) SELECT $1, $2
-		WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $1)`, auth0User.Sub, auth0User.Email)
-	if err != nil {
-		tx.Rollback()
-		w.WriteHeader(http.StatusInternalServerError)
-		panic(err)
-	}
-
-	_, err = tx.Exec(`
-		INSERT INTO btcbalances (user_id, amount) SELECT $1, $2
-		WHERE NOT EXISTS (SELECT 1 FROM btcbalances WHERE user_id = $1)`, auth0User.Sub, 0)
-	if err != nil {
-		tx.Rollback()
-		w.WriteHeader(http.StatusInternalServerError)
-		panic(err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		panic(err)
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
 func CreateUserAfterSignUpSupa(w http.ResponseWriter, r *http.Request) {
 	claims, err := middleware.GetClainsFromToken(r.Header)
 	if err != nil {

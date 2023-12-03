@@ -22,8 +22,6 @@ func OpenConnection() *sql.DB {
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
-	fmt.Println("🙂 psqlconn", psqlconn)
-
 	db, err := sql.Open("postgres", psqlconn)
 	CheckError(err)
 

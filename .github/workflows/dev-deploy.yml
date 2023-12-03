@@ -74,5 +74,8 @@ jobs:
               -e WOMPI_EVENT=${{ secrets.TEST_WOMPI_EVENT }} \
               -e WITHDRAWAL_INTEGRITY=${{ secrets.TEST_WITHDRAWAL_INTEGRITY }} \
               -e JWT_SECRET=${{ secrets.TEST_SUPABASE_JWT_SECRET }} \
+              -e WALLET_ADDRESS=http://wallet:8000 \
+              -e ALERT_BOT_TOKEN=${{ secrets.ALERT_BOT_TOKEN }} \
+              -e TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }} \
               registry.digitalocean.com/zener/engine:dev
 
