@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 )
 
 // TelegramMessage represents the structure of a Telegram message.
@@ -15,7 +16,9 @@ type TelegramMessage struct {
 	Text   string `json:"text"`
 }
 
-func sendTelegramMessage(botToken string, chatID int64, message string) error {
+func sendTelegramMessage(botToken string, chatID int64, message string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botToken)
 
 	telegramMessage := TelegramMessage{
@@ -26,20 +29,21 @@ func sendTelegramMessage(botToken string, chatID int64, message string) error {
 	// Convert the message to JSON
 	messageJSON, err := json.Marshal(telegramMessage)
 	if err != nil {
-		return err
+		fmt.Println("Error Convert the message to JSON", err)
+		return
 	}
 
 	// Make the HTTP POST request to send the message
 	_, err = http.Post(apiURL, "application/json", bytes.NewBuffer(messageJSON))
 	if err != nil {
-		return err
+		fmt.Println("Error sending message:", err)
+		return
 	}
 
-	return nil
+	return
 }
 
 func InsufficientFundsAlert() {
-	// Replace these values with your actual bot token, chat ID, and message
 	var botToken = os.Getenv("ALERT_BOT_TOKEN")
 	var chatIDEnv = os.Getenv("TELEGRAM_CHAT_ID")
 
@@ -49,11 +53,8 @@ func InsufficientFundsAlert() {
 	}
 
 	message := "WITHDRAW INSUFFICIENT FUNDS"
-	err = sendTelegramMessage(botToken, chatID, message)
-
-	if err != nil {
-		fmt.Println("Failed to send message:", err)
-	} else {
-		fmt.Println("Message sent successfully")
-	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go sendTelegramMessage(botToken, chatID, message, &wg)
+	wg.Wait()
 }
