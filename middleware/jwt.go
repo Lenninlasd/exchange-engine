@@ -57,7 +57,6 @@ func ValidateTokenMiddleware(next http.Handler) http.Handler {
 		}
 
 		if token.Valid {
-			fmt.Println("Token is valid")
 			next.ServeHTTP(w, r)
 		}
 		return
