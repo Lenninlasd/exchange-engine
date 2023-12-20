@@ -29,6 +29,7 @@ func Routes() {
 
 	router.HandleFunc("/", homeLink).Methods("GET")
 	router.HandleFunc("/wompi/event", UptateFiatDeposit).Methods("POST")
+	router.HandleFunc("/blocked-withdrawals", GetBlockedWithdrawals).Methods("GET")
 
 	headers := handlers.AllowedHeaders([]string{
 		"X-Requested-With",

@@ -3,6 +3,8 @@ package types
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Withdraw struct {
@@ -26,4 +28,14 @@ type BroadcastedTx struct {
 	Confirmations uint64    `json:"confirmations"`
 	BlockHeight   uint64    `json:"blockheight"`
 	Timestamp     time.Time `json:"timestamp"`
+}
+
+type WithdrawalRecord struct {
+	Id        uuid.UUID `json:"id"`
+	UserId    string    `json:"userid"`
+	Email     string    `json:"email"`
+	Amount    uint64    `json:"amount"`
+	Address   string    `json:"address"`
+	Status    string    `json:"status"`
+	Timestamp time.Time `json:"timestamp"`
 }
