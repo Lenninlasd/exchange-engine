@@ -26,6 +26,7 @@ func Routes() {
 	supaRouter.HandleFunc("/deposit", CreateFiatDepositSupa).Methods("POST")
 	supaRouter.HandleFunc("/pending-withdrawal-tx", GetPendingWithdrawalTxSupa).Methods("GET")
 	supaRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
+	supaRouter.HandleFunc("/blocked-withdrawals", GetBlockedWithdrawals).Methods("GET")
 
 	router.HandleFunc("/", homeLink).Methods("GET")
 	router.HandleFunc("/wompi/event", UptateFiatDeposit).Methods("POST")

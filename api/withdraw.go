@@ -348,3 +348,92 @@ func watchTransactionOnMempool(transaction types.Transaction, balance types.Bala
 	<-done
 	fmt.Println("Transaction is confirmed, cancelling ticker...")
 }
+
+func getApi(url string, baseKey string) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("apikey", baseKey)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", baseKey))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
+}
+
+func GetBlockedWithdrawals(w http.ResponseWriter, r *http.Request) {
+	claims, err := middleware.GetClainsFromToken(r.Header)
+	var tokenString = os.Getenv("SUPA_SERVICE_ROLE_TOKEN")
+	var supabaseProjectId = os.Getenv("SUPA_PROJECT_ID")
+	supabaseApiURL := fmt.Sprintf("https://%s.supabase.co/rest/v1/users?select=role&id=eq.%s", supabaseProjectId, claims.Subject)
+
+	body, err := getApi(supabaseApiURL, tokenString)
+	if err != nil {
+		panic(err)
+	}
+
+	var userRoles []types.UserRole
+	err = json.Unmarshal(body, &userRoles)
+
+	if len(userRoles) == 0 || userRoles[0].Role != "admin" {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprintf(w, "%s", "Forbidden: User does not have admin role.")
+		return
+	}
+
+	db := OpenConnection()
+
+	query := `
+		SELECT withdraw_history.id, user_id, email, amount, address, status, time_stamp
+		FROM withdraw_history
+		JOIN users ON users.id = user_id
+		WHERE internal_state=$1;
+	`
+
+	rows, err := db.Query(query, WITHDRAW_INSUFFICIENT_FUNDS)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	// Iterate over the result set and store the data in a struct
+	var withdrawalRecords []types.WithdrawalRecord
+	for rows.Next() {
+		var record types.WithdrawalRecord
+		err := rows.Scan(
+			&record.Id,
+			&record.UserId,
+			&record.Email,
+			&record.Amount,
+			&record.Address,
+			&record.Status,
+			&record.Timestamp,
+		)
+		if err != nil {
+			panic(err)
+		}
+		withdrawalRecords = append(withdrawalRecords, record)
+	}
+
+	// Check for errors from iterating over rows.
+	if err := rows.Err(); err != nil {
+		panic(err)
+	}
+
+	defer db.Close()
+
+	Conv, _ := json.MarshalIndent(withdrawalRecords, "", " ")
+	fmt.Fprintf(w, "%s", Conv)
+}
