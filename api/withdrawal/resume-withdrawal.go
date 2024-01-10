@@ -23,13 +23,13 @@ func ResumeWithdrawal(w http.ResponseWriter, r *http.Request) {
 	var userId string
 
 	db := postgres.OpenConnection()
+	defer db.Close()
 
 	query := "SELECT user_id, amount, address FROM public.withdraw_history WHERE id=$1;"
 	err = db.QueryRow(query, withdrawalId).Scan(&userId, &withdraw.Amount, &withdraw.Address)
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
 
 	var balance types.Balance
 	err = db.QueryRow("SELECT * FROM btcbalances WHERE user_id=$1 LIMIT 1", userId).Scan(&balance.UserId, &balance.Amount, &balance.Timestamp)
