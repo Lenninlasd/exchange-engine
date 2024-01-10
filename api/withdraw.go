@@ -64,8 +64,8 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%s", "User does not have sufficient funds")
 		return
 	}
-	withdrawId := uuid.New()
-	err = initWithdrawTx(withdrawId, withdraw, claims.Subject)
+	withdrawalId := uuid.New()
+	err = initWithdrawTx(withdrawalId, withdraw, claims.Subject)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		panic(err)
@@ -78,32 +78,40 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transaction, err := SendWithdrawToWallet(withdrawId, withdraw, recomendedFees.FastestFee)
+	transaction, err := ExecuteWithdrawal(withdrawalId, withdraw, recomendedFees.FastestFee, balance)
 	if err != nil {
-		if err.Error() == WITHDRAW_INSUFFICIENT_FUNDS {
-			// TODO: this function has to be non-blocking
-			telegrambot.InsufficientFundsAlert()
-			updateError := updateInternalState(withdrawId, WITHDRAW_INSUFFICIENT_FUNDS)
-			if updateError != nil {
-				cancelWithdrawalTx(withdrawId)
-				panic(updateError)
-			}
-			return
-		}
-		cancelWithdrawalTx(withdrawId)
 		panic(err)
 	}
 
-	err = broadcastedWithdrawTx(withdrawId, transaction.Txid)
+	Conv, _ := json.MarshalIndent(transaction, "", " ")
+	fmt.Fprintf(w, "%s", string(Conv))
+}
+
+func ExecuteWithdrawal(withdrawalId uuid.UUID, withdraw types.Withdraw, FastestFee float32, balance types.Balance) (types.Transaction, error) {
+	transaction, err := SendWithdrawToWallet(withdrawalId, withdraw, FastestFee)
 	if err != nil {
-		cancelWithdrawalTx(withdrawId)
-		panic(err)
+		if err.Error() == WITHDRAW_INSUFFICIENT_FUNDS {
+			telegrambot.InsufficientFundsAlert()
+			updateError := updateInternalState(withdrawalId, WITHDRAW_INSUFFICIENT_FUNDS)
+			if updateError != nil {
+				cancelWithdrawalTx(withdrawalId)
+				return transaction, updateError
+			}
+			return transaction, nil
+		}
+		cancelWithdrawalTx(withdrawalId)
+		return transaction, err
+	}
+
+	err = broadcastedWithdrawTx(withdrawalId, transaction.Txid)
+	if err != nil {
+		cancelWithdrawalTx(withdrawalId)
+		return transaction, err
 	}
 
 	go watchTransactionOnMempool(transaction, balance)
 
-	Conv, _ := json.MarshalIndent(transaction, "", " ")
-	fmt.Fprintf(w, "%s", string(Conv))
+	return transaction, nil
 }
 
 func updateInternalState(id uuid.UUID, newState string) error {
@@ -156,12 +164,12 @@ func checkUserWithdrawalStatus(UserId string) bool {
 	return exists
 }
 
-func initWithdrawTx(withdrawId uuid.UUID, withdraw types.Withdraw, UserId string) error {
+func initWithdrawTx(withdrawalId uuid.UUID, withdraw types.Withdraw, UserId string) error {
 	db := OpenConnection()
 
 	_, err := db.Exec(
 		`INSERT INTO withdraw_history (id, user_id, amount, address, status) VALUES ($1, $2, $3, $4, $5)`,
-		withdrawId, UserId, withdraw.Amount, withdraw.Address, WITHDRAW_STATUS_INICIALIZED,
+		withdrawalId, UserId, withdraw.Amount, withdraw.Address, WITHDRAW_STATUS_INICIALIZED,
 	)
 
 	defer db.Close()
@@ -169,12 +177,12 @@ func initWithdrawTx(withdrawId uuid.UUID, withdraw types.Withdraw, UserId string
 	return err
 }
 
-func broadcastedWithdrawTx(withdrawId uuid.UUID, txid string) error {
+func broadcastedWithdrawTx(withdrawalId uuid.UUID, txid string) error {
 	db := OpenConnection()
 
 	_, err := db.Exec(
 		`UPDATE withdraw_history SET status=$1, txid=$2, confirmations=0 WHERE id=$3`,
-		WITHDRAW_STATUS_BROADCASTED, txid, withdrawId,
+		WITHDRAW_STATUS_BROADCASTED, txid, withdrawalId,
 	)
 
 	defer db.Close()
@@ -228,18 +236,18 @@ func updateByConfirmations(transaction types.Transaction, blockHeight uint64, ba
 	return err
 }
 
-func cancelWithdrawalTx(withdrawId uuid.UUID) error {
+func cancelWithdrawalTx(withdrawalId uuid.UUID) error {
 	db := OpenConnection()
 	_, err := db.Exec(
 		`UPDATE withdraw_history SET status=$1 WHERE id=$2`,
-		WITHDRAW_STATUS_CANCELED, withdrawId,
+		WITHDRAW_STATUS_CANCELED, withdrawalId,
 	)
 	defer db.Close()
 	return err
 }
 
-func SendWithdrawToWallet(withdrawId uuid.UUID, withdraw types.Withdraw, feeRate float32) (types.Transaction, error) {
-	reference := withdrawId.String()
+func SendWithdrawToWallet(withdrawalId uuid.UUID, withdraw types.Withdraw, feeRate float32) (types.Transaction, error) {
+	reference := withdrawalId.String()
 	integrity := os.Getenv("WITHDRAWAL_INTEGRITY")
 	feeRateString := fmt.Sprintf("%g", feeRate)
 	amountString := fmt.Sprintf("%d", withdraw.Amount)
@@ -401,7 +409,6 @@ func GetBlockedWithdrawals(w http.ResponseWriter, r *http.Request) {
 		JOIN users ON users.id = user_id
 		WHERE internal_state=$1;
 	`
-
 	rows, err := db.Query(query, WITHDRAW_INSUFFICIENT_FUNDS)
 	if err != nil {
 		panic(err)
