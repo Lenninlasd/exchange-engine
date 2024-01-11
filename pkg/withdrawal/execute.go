@@ -19,21 +19,12 @@ import (
 	"github.com/lenninlasd/Engine/types"
 )
 
-const (
-	WITHDRAW_STATUS_INICIALIZED = "initialized"
-	WITHDRAW_STATUS_BROADCASTED = "broadcasted"
-	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
-	WITHDRAW_STATUS_CANCELED    = "canceled"
-	WITHDRAW_INSUFFICIENT_FUNDS = "InsufficientFunds"
-	TIME_TO_FECHT_MEMPOOL       = 1
-)
-
 func Execute(withdrawalId uuid.UUID, withdraw types.Withdraw, FastestFee float32, balance types.Balance) (types.Transaction, error) {
 	transaction, err := SendWithdrawToWallet(withdrawalId, withdraw, FastestFee)
 	if err != nil {
-		if err.Error() == WITHDRAW_INSUFFICIENT_FUNDS {
+		if err.Error() == constants.WITHDRAW_INSUFFICIENT_FUNDS {
 			telegrambot.InsufficientFundsAlert()
-			updateError := updateInternalState(withdrawalId, WITHDRAW_INSUFFICIENT_FUNDS)
+			updateError := updateInternalState(withdrawalId, constants.WITHDRAW_INSUFFICIENT_FUNDS)
 			if updateError != nil {
 				cancelWithdrawalTx(withdrawalId)
 				return transaction, updateError
@@ -121,7 +112,7 @@ func cancelWithdrawalTx(withdrawalId uuid.UUID) error {
 	db := postgres.OpenConnection()
 	_, err := db.Exec(
 		`UPDATE withdraw_history SET status=$1 WHERE id=$2`,
-		WITHDRAW_STATUS_CANCELED, withdrawalId,
+		constants.WITHDRAW_STATUS_CANCELED, withdrawalId,
 	)
 	defer db.Close()
 	return err
@@ -131,8 +122,8 @@ func broadcastedWithdrawTx(withdrawalId uuid.UUID, txid string) error {
 	db := postgres.OpenConnection()
 
 	_, err := db.Exec(
-		`UPDATE withdraw_history SET status=$1, txid=$2, confirmations=0 WHERE id=$3`,
-		WITHDRAW_STATUS_BROADCASTED, txid, withdrawalId,
+		`UPDATE withdraw_history SET status=$1, txid=$2, confirmations=0 internal_state=null WHERE id=$3`,
+		constants.WITHDRAW_STATUS_BROADCASTED, txid, withdrawalId,
 	)
 
 	defer db.Close()
@@ -142,7 +133,7 @@ func broadcastedWithdrawTx(withdrawalId uuid.UUID, txid string) error {
 
 func watchTransactionOnMempool(transaction types.Transaction, balance types.Balance) {
 	// TODO Implement websockets to watch new block confirmations
-	ticker := time.NewTicker(TIME_TO_FECHT_MEMPOOL * time.Minute)
+	ticker := time.NewTicker(constants.TIME_TO_FECHT_MEMPOOL * time.Minute)
 	done := make(chan bool)
 
 	go func() {
@@ -225,7 +216,7 @@ func updateByConfirmations(transaction types.Transaction, blockHeight uint64, ba
 	}
 	_, err = tx.Exec(`
 		UPDATE withdraw_history SET status=$1, confirmations=1, blockheight=$2 WHERE txid=$3;
-    `, WITHDRAW_STATUS_CONFIRMED, blockHeight, transaction.Txid)
+    `, constants.WITHDRAW_STATUS_CONFIRMED, blockHeight, transaction.Txid)
 	if err != nil {
 		tx.Rollback()
 		return err

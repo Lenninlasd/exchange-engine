@@ -6,22 +6,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 
 	"github.com/google/uuid"
+	"github.com/lenninlasd/Engine/constants"
 	"github.com/lenninlasd/Engine/middleware"
+	"github.com/lenninlasd/Engine/pkg/utils"
 	"github.com/lenninlasd/Engine/pkg/withdrawal"
 	"github.com/lenninlasd/Engine/postgres"
 	"github.com/lenninlasd/Engine/types"
-)
-
-const (
-	WITHDRAW_STATUS_INICIALIZED = "initialized"
-	WITHDRAW_STATUS_BROADCASTED = "broadcasted"
-	WITHDRAW_STATUS_CONFIRMED   = "confirmed"
-	WITHDRAW_STATUS_CANCELED    = "canceled"
-
-	WITHDRAW_INSUFFICIENT_FUNDS = "InsufficientFunds"
 )
 
 func Withdraw(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +86,7 @@ func GetPendingWithdrawalTxSupa(w http.ResponseWriter, r *http.Request) {
 		`SELECT txid, address, amount, time_stamp, status, confirmations, blockheight
 		FROM public.withdraw_history
 		WHERE user_id=$1 AND (status=$2 OR status=$3 OR status=$4) ORDER BY time_stamp DESC LIMIT 1`,
-		claims.Subject, WITHDRAW_STATUS_INICIALIZED, WITHDRAW_STATUS_BROADCASTED, WITHDRAW_STATUS_CONFIRMED).Scan(
+		claims.Subject, constants.WITHDRAW_STATUS_INICIALIZED, constants.WITHDRAW_STATUS_BROADCASTED, constants.WITHDRAW_STATUS_CONFIRMED).Scan(
 		&tx.Txid, &tx.Address, &tx.Amount, &tx.Timestamp, &tx.Status, &tx.Confirmations, &tx.BlockHeight)
 
 	if err != nil && err != sql.ErrNoRows {
@@ -114,7 +106,7 @@ func checkUserWithdrawalStatus(UserId string) bool {
 	query := `SELECT EXISTS (SELECT 1 FROM withdraw_history WHERE user_id = $1 AND status IN ($2, $3))`
 
 	var exists bool
-	err := db.QueryRow(query, UserId, WITHDRAW_STATUS_INICIALIZED, WITHDRAW_STATUS_BROADCASTED).Scan(&exists)
+	err := db.QueryRow(query, UserId, constants.WITHDRAW_STATUS_INICIALIZED, constants.WITHDRAW_STATUS_BROADCASTED).Scan(&exists)
 	if err != nil {
 		panic(err)
 	}
@@ -127,7 +119,7 @@ func initWithdrawTx(withdrawalId uuid.UUID, withdraw types.Withdraw, UserId stri
 
 	_, err := db.Exec(
 		`INSERT INTO withdraw_history (id, user_id, amount, address, status) VALUES ($1, $2, $3, $4, $5)`,
-		withdrawalId, UserId, withdraw.Amount, withdraw.Address, WITHDRAW_STATUS_INICIALIZED,
+		withdrawalId, UserId, withdraw.Amount, withdraw.Address, constants.WITHDRAW_STATUS_INICIALIZED,
 	)
 
 	defer db.Close()
@@ -135,45 +127,15 @@ func initWithdrawTx(withdrawalId uuid.UUID, withdraw types.Withdraw, UserId stri
 	return err
 }
 
-func getApi(url string, baseKey string) ([]byte, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("apikey", baseKey)
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", baseKey))
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
-}
-
 func GetBlockedWithdrawals(w http.ResponseWriter, r *http.Request) {
 	claims, err := middleware.GetClainsFromToken(r.Header)
-	var tokenString = os.Getenv("SUPA_SERVICE_ROLE_TOKEN")
-	var supabaseProjectId = os.Getenv("SUPA_PROJECT_ID")
-	supabaseApiURL := fmt.Sprintf("https://%s.supabase.co/rest/v1/users?select=role&id=eq.%s", supabaseProjectId, claims.Subject)
 
-	body, err := getApi(supabaseApiURL, tokenString)
+	role, err := utils.GetUserRole(claims.Subject)
 	if err != nil {
 		panic(err)
 	}
 
-	var userRoles []types.UserRole
-	err = json.Unmarshal(body, &userRoles)
-
-	if len(userRoles) == 0 || userRoles[0].Role != "admin" {
+	if role != constants.ADMIN_ROLE {
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprintf(w, "%s", "Forbidden: User does not have admin role.")
 		return
@@ -187,7 +149,7 @@ func GetBlockedWithdrawals(w http.ResponseWriter, r *http.Request) {
 		JOIN users ON users.id = user_id
 		WHERE internal_state=$1;
 	`
-	rows, err := db.Query(query, WITHDRAW_INSUFFICIENT_FUNDS)
+	rows, err := db.Query(query, constants.WITHDRAW_INSUFFICIENT_FUNDS)
 	if err != nil {
 		panic(err)
 	}
