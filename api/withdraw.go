@@ -49,24 +49,27 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%s", "User does not have sufficient funds")
 		return
 	}
-	withdrawalId := uuid.New()
-	err = initWithdrawTx(withdrawalId, withdraw, claims.Subject)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		panic(err)
-	}
 
-	recomendedFees, err := GetMempoolFeeRates()
+	recomendedFees, err := utils.GetMempoolFeeRates()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", "Error loading fees")
 		return
 	}
 
-	transaction, err := withdrawal.Execute(withdrawalId, withdraw, recomendedFees.FastestFee, balance)
+	withdrawalId := uuid.New()
+	err = initWithdrawTx(withdrawalId, withdraw, claims.Subject, recomendedFees.FastestFee)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		panic(err)
+	}
+
+	transaction, err := withdrawal.Execute(withdrawalId, withdraw, recomendedFees.FastestFee)
 	if err != nil {
 		panic(err)
 	}
+
+	go withdrawal.WatchTransactionOnMempool(transaction, balance)
 
 	Conv, _ := json.MarshalIndent(transaction, "", " ")
 	fmt.Fprintf(w, "%s", string(Conv))
@@ -114,12 +117,12 @@ func checkUserWithdrawalStatus(UserId string) bool {
 	return exists
 }
 
-func initWithdrawTx(withdrawalId uuid.UUID, withdraw types.Withdraw, UserId string) error {
+func initWithdrawTx(withdrawalId uuid.UUID, withdraw types.Withdraw, UserId string, feeRate float32) error {
 	db := postgres.OpenConnection()
 
 	_, err := db.Exec(
-		`INSERT INTO withdraw_history (id, user_id, amount, address, status) VALUES ($1, $2, $3, $4, $5)`,
-		withdrawalId, UserId, withdraw.Amount, withdraw.Address, constants.WITHDRAW_STATUS_INICIALIZED,
+		`INSERT INTO withdraw_history (id, user_id, amount, fee_rate, address, status) VALUES ($1, $2, $3, $4, $5, $6)`,
+		withdrawalId, UserId, withdraw.Amount, feeRate, withdraw.Address, constants.WITHDRAW_STATUS_INICIALIZED,
 	)
 
 	defer db.Close()

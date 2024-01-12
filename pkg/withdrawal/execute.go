@@ -19,7 +19,7 @@ import (
 	"github.com/lenninlasd/Engine/types"
 )
 
-func Execute(withdrawalId uuid.UUID, withdraw types.Withdraw, FastestFee float32, balance types.Balance) (types.Transaction, error) {
+func Execute(withdrawalId uuid.UUID, withdraw types.Withdraw, FastestFee float32) (types.Transaction, error) {
 	transaction, err := SendWithdrawToWallet(withdrawalId, withdraw, FastestFee)
 	if err != nil {
 		if err.Error() == constants.WITHDRAW_INSUFFICIENT_FUNDS {
@@ -40,8 +40,6 @@ func Execute(withdrawalId uuid.UUID, withdraw types.Withdraw, FastestFee float32
 		cancelWithdrawalTx(withdrawalId)
 		return transaction, err
 	}
-
-	go watchTransactionOnMempool(transaction, balance)
 
 	return transaction, nil
 }
@@ -131,7 +129,7 @@ func broadcastedWithdrawTx(withdrawalId uuid.UUID, txid string) error {
 	return err
 }
 
-func watchTransactionOnMempool(transaction types.Transaction, balance types.Balance) {
+func WatchTransactionOnMempool(transaction types.Transaction, balance types.Balance) {
 	// TODO Implement websockets to watch new block confirmations
 	ticker := time.NewTicker(constants.TIME_TO_FECHT_MEMPOOL * time.Minute)
 	done := make(chan bool)
