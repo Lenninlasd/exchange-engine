@@ -35,8 +35,9 @@ type Transaction struct {
 	Received uint64 `json:"received"`
 	/// Sent value (sats)
 	/// Sum of owned inputs of this transaction.
-	Sent uint64 `json:"sent"`
-	Fee  uint64 `json:"fee"`
+	Sent        uint64  `json:"sent"`
+	Fee         uint64  `json:"fee"`
+	FeeToCharge *uint64 `json:"feetocharge"`
 }
 
 func (transaction *Transaction) FromJSON(msg []byte) error {

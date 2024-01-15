@@ -66,6 +66,12 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	transaction, err := withdrawal.Execute(withdrawalId, withdraw, recomendedFees.FastestFee)
 	if err != nil {
+		if err.Error() == constants.WITHDRAW_INSUFFICIENT_FUNDS {
+			return
+		}
+
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", "Error Executing withdrawal")
 		panic(err)
 	}
 

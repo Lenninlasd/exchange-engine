@@ -29,7 +29,7 @@ func Execute(withdrawalId uuid.UUID, withdraw types.Withdraw, FastestFee float32
 				cancelWithdrawalTx(withdrawalId)
 				return transaction, updateError
 			}
-			return transaction, nil
+			return transaction, err
 		}
 		cancelWithdrawalTx(withdrawalId)
 		return transaction, err
@@ -120,7 +120,7 @@ func broadcastedWithdrawTx(withdrawalId uuid.UUID, txid string) error {
 	db := postgres.OpenConnection()
 
 	_, err := db.Exec(
-		`UPDATE withdraw_history SET status=$1, txid=$2, confirmations=0 internal_state=null WHERE id=$3`,
+		`UPDATE withdraw_history SET status=$1, txid=$2, confirmations=0, internal_state=null WHERE id=$3`,
 		constants.WITHDRAW_STATUS_BROADCASTED, txid, withdrawalId,
 	)
 
@@ -192,8 +192,13 @@ func updateByConfirmations(transaction types.Transaction, blockHeight uint64, ba
 
 	sentToUser := transaction.Sent - transaction.Received - transaction.Fee
 
+	feeToCharge := transaction.Fee
+	if transaction.FeeToCharge != nil {
+		feeToCharge = *transaction.FeeToCharge
+	}
+
 	// MODEL 1: in this case the user is charged with on chain fees and the ZENER fee
-	totalUserSpend := sentToUser + constants.ZENER_FEE + transaction.Fee
+	totalUserSpend := sentToUser + constants.ZENER_FEE + feeToCharge
 
 	// MODEL 2:in this case ZENER_FEE contains the fee,
 	// but if the on chain fees are grater than the zener fee the user pay the on chain fees

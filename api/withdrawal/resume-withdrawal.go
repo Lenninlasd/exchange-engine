@@ -1,6 +1,7 @@
 package withdrawal
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -45,16 +46,15 @@ func ResumeWithdrawal(w http.ResponseWriter, r *http.Request) {
 	db := postgres.OpenConnection()
 	defer db.Close()
 
-	query := "SELECT user_id, amount, fee_rate, address, internal_state FROM public.withdraw_history WHERE id=$1;"
-	err = db.QueryRow(query, withdrawalId).Scan(&userId, &withdraw.Amount, &initialFeeRate, &withdraw.Address, &internalState)
-	if err != nil {
-		panic(err)
-	}
-
-	if internalState != constants.WITHDRAW_INSUFFICIENT_FUNDS {
+	query := "SELECT user_id, amount, fee_rate, address, internal_state FROM public.withdraw_history WHERE id=$1 AND internal_state=$2;"
+	err = db.QueryRow(query, withdrawalId, constants.WITHDRAW_INSUFFICIENT_FUNDS).Scan(&userId, &withdraw.Amount, &initialFeeRate, &withdraw.Address, &internalState)
+	if err == sql.ErrNoRows {
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprintf(w, "%s", "Forbidden: this transaction is not allawed to be resume.")
 		return
+	}
+	if err != nil {
+		panic(err)
 	}
 
 	var balance types.Balance
@@ -74,6 +74,12 @@ func ResumeWithdrawal(w http.ResponseWriter, r *http.Request) {
 
 	transaction, err := withdrawal.Execute(withdrawalId, withdraw, recomendedFees.FastestFee)
 	if err != nil {
+		if err.Error() == constants.WITHDRAW_INSUFFICIENT_FUNDS {
+			return
+		}
+
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", "Error Executing withdrawal")
 		panic(err)
 	}
 
@@ -84,7 +90,7 @@ func ResumeWithdrawal(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "%s", "Error getting fee value")
 			return
 		}
-		transaction.Fee = feeValue
+		transaction.FeeToCharge = &feeValue
 	}
 
 	go withdrawal.WatchTransactionOnMempool(transaction, balance)
