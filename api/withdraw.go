@@ -163,6 +163,7 @@ func GetBlockedWithdrawals(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 	defer rows.Close()
+	defer db.Close()
 
 	// Iterate over the result set and store the data in a struct
 	var withdrawalRecords []types.WithdrawalRecord
@@ -188,8 +189,11 @@ func GetBlockedWithdrawals(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	defer db.Close()
+	if len(withdrawalRecords) == 0 {
+		withdrawalRecords = []types.WithdrawalRecord{}
+	}
 
+	w.Header().Set("Content-Type", "application/json")
 	Conv, _ := json.MarshalIndent(withdrawalRecords, "", " ")
 	fmt.Fprintf(w, "%s", Conv)
 }
