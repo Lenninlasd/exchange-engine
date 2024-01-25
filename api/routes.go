@@ -28,7 +28,7 @@ func Routes() {
 	supaRouter.HandleFunc("/pending-withdrawal-tx", GetPendingWithdrawalTxSupa).Methods("GET")
 	supaRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
 	supaRouter.HandleFunc("/withdrawals-history", withdrawal.GetWithdrawalsHistory).Methods("GET")
-	supaRouter.HandleFunc("/blocked-withdrawals", GetBlockedWithdrawals).Methods("GET")
+	supaRouter.HandleFunc("/blocked-withdrawals", withdrawal.GetBlockedWithdrawals).Methods("GET")
 	supaRouter.HandleFunc("/resume-withdrawal/{withdrawalId}", withdrawal.ResumeWithdrawal).Methods("POST")
 
 	router.HandleFunc("/", homeLink).Methods("GET")

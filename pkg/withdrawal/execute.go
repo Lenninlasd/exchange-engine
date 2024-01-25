@@ -217,9 +217,11 @@ func updateByConfirmations(transaction types.Transaction, blockHeight uint64, ba
 	if err != nil {
 		return err
 	}
+
+	// Note: the feeToCharge is added when the tx is confirmed.
 	_, err = tx.Exec(`
-		UPDATE withdraw_history SET status=$1, confirmations=1, blockheight=$2 WHERE txid=$3;
-    `, constants.WITHDRAW_STATUS_CONFIRMED, blockHeight, transaction.Txid)
+		UPDATE withdraw_history SET status=$1, confirmations=1, blockheight=$2, fee=$3 WHERE txid=$4;
+    `, constants.WITHDRAW_STATUS_CONFIRMED, blockHeight, feeToCharge, transaction.Txid)
 	if err != nil {
 		tx.Rollback()
 		return err
