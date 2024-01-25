@@ -93,6 +93,15 @@ func ResumeWithdrawal(w http.ResponseWriter, r *http.Request) {
 		transaction.FeeToCharge = &feeValue
 	}
 
+	var feeToCharge uint64
+	if transaction.FeeToCharge != nil {
+		feeToCharge = *transaction.FeeToCharge
+	} else {
+		feeToCharge = transaction.Fee
+	}
+
+	withdrawal.BroadcastedWithdrawTx(w, withdrawalId, transaction.Txid, feeToCharge)
+
 	go withdrawal.WatchTransactionOnMempool(transaction, balance)
 
 	Conv, _ := json.MarshalIndent(transaction, "", " ")

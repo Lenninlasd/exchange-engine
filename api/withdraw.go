@@ -75,6 +75,8 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
+	withdrawal.BroadcastedWithdrawTx(w, withdrawalId, transaction.Txid, transaction.Fee)
+
 	go withdrawal.WatchTransactionOnMempool(transaction, balance)
 
 	Conv, _ := json.MarshalIndent(transaction, "", " ")
@@ -134,62 +136,4 @@ func initWithdrawTx(withdrawalId uuid.UUID, withdraw types.Withdraw, UserId stri
 	defer db.Close()
 
 	return err
-}
-
-func GetBlockedWithdrawals(w http.ResponseWriter, r *http.Request) {
-	claims, err := middleware.GetClainsFromToken(r.Header)
-
-	role, err := utils.GetUserRole(claims.Subject)
-	if err != nil {
-		panic(err)
-	}
-
-	if role != constants.ADMIN_ROLE {
-		w.WriteHeader(http.StatusForbidden)
-		fmt.Fprintf(w, "%s", "Forbidden: User does not have admin role.")
-		return
-	}
-
-	db := postgres.OpenConnection()
-
-	query := `
-		SELECT withdraw_history.id, user_id, email, amount, address, status, time_stamp
-		FROM withdraw_history
-		JOIN users ON users.id = user_id
-		WHERE internal_state=$1;
-	`
-	rows, err := db.Query(query, constants.WITHDRAW_INSUFFICIENT_FUNDS)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
-	// Iterate over the result set and store the data in a struct
-	var withdrawalRecords []types.WithdrawalRecord
-	for rows.Next() {
-		var record types.WithdrawalRecord
-		err := rows.Scan(
-			&record.Id,
-			&record.UserId,
-			&record.Email,
-			&record.Amount,
-			&record.Address,
-			&record.Status,
-			&record.Timestamp,
-		)
-		if err != nil {
-			panic(err)
-		}
-		withdrawalRecords = append(withdrawalRecords, record)
-	}
-
-	// Check for errors from iterating over rows.
-	if err := rows.Err(); err != nil {
-		panic(err)
-	}
-
-	defer db.Close()
-
-	Conv, _ := json.MarshalIndent(withdrawalRecords, "", " ")
-	fmt.Fprintf(w, "%s", Conv)
 }

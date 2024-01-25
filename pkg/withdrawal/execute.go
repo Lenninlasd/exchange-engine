@@ -35,12 +35,6 @@ func Execute(withdrawalId uuid.UUID, withdraw types.Withdraw, FastestFee float32
 		return transaction, err
 	}
 
-	err = broadcastedWithdrawTx(withdrawalId, transaction.Txid)
-	if err != nil {
-		cancelWithdrawalTx(withdrawalId)
-		return transaction, err
-	}
-
 	return transaction, nil
 }
 
@@ -116,17 +110,21 @@ func cancelWithdrawalTx(withdrawalId uuid.UUID) error {
 	return err
 }
 
-func broadcastedWithdrawTx(withdrawalId uuid.UUID, txid string) error {
+func BroadcastedWithdrawTx(w http.ResponseWriter, withdrawalId uuid.UUID, txid string, feeToCharge uint64) {
 	db := postgres.OpenConnection()
 
 	_, err := db.Exec(
-		`UPDATE withdraw_history SET status=$1, txid=$2, confirmations=0, internal_state=null WHERE id=$3`,
-		constants.WITHDRAW_STATUS_BROADCASTED, txid, withdrawalId,
+		`UPDATE withdraw_history SET status=$1, txid=$2, confirmations=0, fee=$3, internal_state=null WHERE id=$4`,
+		constants.WITHDRAW_STATUS_BROADCASTED, txid, feeToCharge, withdrawalId,
 	)
+	if err != nil {
+		cancelWithdrawalTx(withdrawalId)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", "Error Broadcasting withdrawal")
+		panic(err)
+	}
 
 	defer db.Close()
-
-	return err
 }
 
 func WatchTransactionOnMempool(transaction types.Transaction, balance types.Balance) {
@@ -217,6 +215,7 @@ func updateByConfirmations(transaction types.Transaction, blockHeight uint64, ba
 	if err != nil {
 		return err
 	}
+
 	_, err = tx.Exec(`
 		UPDATE withdraw_history SET status=$1, confirmations=1, blockheight=$2 WHERE txid=$3;
     `, constants.WITHDRAW_STATUS_CONFIRMED, blockHeight, transaction.Txid)
