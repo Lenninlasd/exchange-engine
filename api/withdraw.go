@@ -75,6 +75,8 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
+	withdrawal.BroadcastedWithdrawTx(w, withdrawalId, transaction.Txid, transaction.Fee)
+
 	go withdrawal.WatchTransactionOnMempool(transaction, balance)
 
 	Conv, _ := json.MarshalIndent(transaction, "", " ")

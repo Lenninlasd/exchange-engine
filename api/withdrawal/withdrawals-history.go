@@ -28,7 +28,8 @@ func GetWithdrawalsHistory(w http.ResponseWriter, r *http.Request) {
 	query := `
 		SELECT id, amount, address, txid, status, time_stamp, fee
 		FROM public.withdraw_history
-		WHERE user_id=$1;`
+		WHERE user_id=$1
+		ORDER BY time_stamp DESC;`
 
 	rows, err := db.Query(query, claims.Subject)
 	if err != nil {
