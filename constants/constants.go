@@ -17,3 +17,4 @@ const (
 )
 
 var WALLET_ADDRESS = os.Getenv("WALLET_ADDRESS")
+var BITCOIN_NETWORK = os.Getenv("BITCOIN_NETWORK")

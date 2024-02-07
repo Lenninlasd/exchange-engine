@@ -82,5 +82,6 @@ jobs:
               -e TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }} \
               -e SUPA_SERVICE_ROLE_TOKEN=${{ secrets.SUPA_SERVICE_ROLE_TOKEN }} \
               -e SUPA_PROJECT_ID=${{ vars.SUPA_PROJECT_ID }} \
+              -e BITCOIN_NETWORK=Mainnet \
               registry.digitalocean.com/zener/engine:${{ env.TAG_NAME }}
 
