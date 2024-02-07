@@ -132,6 +132,11 @@ func WatchTransactionOnMempool(transaction types.Transaction, balance types.Bala
 	ticker := time.NewTicker(constants.TIME_TO_FECHT_MEMPOOL * time.Minute)
 	done := make(chan bool)
 
+	mempoolUrl := "https://mempool.space/testnet/api/tx/%s"
+	if constants.BITCOIN_NETWORK == "Mainnet" {
+		mempoolUrl = "https://mempool.space/api/tx/%s"
+	}
+
 	go func() {
 		for {
 			select {
@@ -139,7 +144,7 @@ func WatchTransactionOnMempool(transaction types.Transaction, balance types.Bala
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				resp, err := http.Get(fmt.Sprintf("https://mempool.space/testnet/api/tx/%s", transaction.Txid))
+				resp, err := http.Get(fmt.Sprintf(mempoolUrl, transaction.Txid))
 				if err != nil {
 					fmt.Printf("Error fetching transaction data: %v\n", err)
 					continue

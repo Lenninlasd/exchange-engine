@@ -2,33 +2,11 @@ package api
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/lenninlasd/Engine/pkg/utils"
 )
-
-func GetCurrentBlockHeight() (uint64, error) {
-	resp, err := http.Get("https://mempool.space/testnet/api/blocks/tip/height")
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return 0, err
-	}
-
-	height, err := strconv.Atoi(string(body))
-	if err != nil {
-		return 0, err
-	}
-
-	return uint64(height), nil
-}
 
 func GetTransactionFee(w http.ResponseWriter, r *http.Request) {
 	address := mux.Vars(r)["address"]
