@@ -18,7 +18,7 @@ func GetTransactionFee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fee, err := utils.GetFeeByFeerate(address, recomendedFees.FastestFee)
+	fee, err := utils.GetFeeByFeerate(address, recomendedFees.HalfHourFee)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Printf("Error loading fees: %v\n", err)

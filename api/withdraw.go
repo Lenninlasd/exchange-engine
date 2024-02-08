@@ -58,13 +58,13 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	withdrawalId := uuid.New()
-	err = initWithdrawTx(withdrawalId, withdraw, claims.Subject, recomendedFees.FastestFee)
+	err = initWithdrawTx(withdrawalId, withdraw, claims.Subject, recomendedFees.HalfHourFee)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		panic(err)
 	}
 
-	transaction, err := withdrawal.Execute(withdrawalId, withdraw, recomendedFees.FastestFee)
+	transaction, err := withdrawal.Execute(withdrawalId, withdraw, recomendedFees.HalfHourFee)
 	if err != nil {
 		if err.Error() == constants.WITHDRAW_INSUFFICIENT_FUNDS {
 			return
