@@ -72,7 +72,7 @@ func ResumeWithdrawal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transaction, err := withdrawal.Execute(withdrawalId, withdraw, recomendedFees.FastestFee)
+	transaction, err := withdrawal.Execute(withdrawalId, withdraw, recomendedFees.HalfHourFee)
 	if err != nil {
 		if err.Error() == constants.WITHDRAW_INSUFFICIENT_FUNDS {
 			return
@@ -83,7 +83,7 @@ func ResumeWithdrawal(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	if recomendedFees.FastestFee > initialFeeRate {
+	if recomendedFees.HalfHourFee > initialFeeRate {
 		feeValue, err := utils.GetFeeByFeerate("", initialFeeRate)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
