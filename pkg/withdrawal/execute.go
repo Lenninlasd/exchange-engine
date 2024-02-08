@@ -144,6 +144,7 @@ func WatchTransactionOnMempool(transaction types.Transaction, balance types.Bala
 				ticker.Stop()
 				return
 			case <-ticker.C:
+				fmt.Println("🤔 mempoolUrl", fmt.Sprintf(mempoolUrl, transaction.Txid))
 				resp, err := http.Get(fmt.Sprintf(mempoolUrl, transaction.Txid))
 				if err != nil {
 					fmt.Printf("Error fetching transaction data: %v\n", err)
