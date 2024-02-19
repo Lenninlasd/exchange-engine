@@ -125,7 +125,7 @@ func GetFiatDepositData(reference string) (types.FiatDepositTx, error) {
 func UpdateBalanceAfterDeposit(
 	UserId string,
 	Transaction types.WompiTx,
-	btcCurrentPrice uint64,
+	btcCurrentPriceInCents uint64,
 	balanceAmount uint64,
 ) error {
 	db := OpenConnection()
@@ -136,9 +136,11 @@ func UpdateBalanceAfterDeposit(
 		return err
 	}
 
+	purchasedSats := SATS_PER_BTC * Transaction.AmountInCents / btcCurrentPriceInCents
+
 	result, err := tx.Exec(
-		`UPDATE fiat_deposit_tx SET id=$1, status=$2 WHERE reference=$3 AND status = $4`,
-		Transaction.ID, Transaction.Status, Transaction.Reference, PENDING,
+		`UPDATE fiat_deposit_tx SET id=$1, status=$2, purchased_sats=$3 WHERE reference=$4 AND status = $5`,
+		Transaction.ID, Transaction.Status, purchasedSats, Transaction.Reference, PENDING,
 	)
 	if err != nil {
 		tx.Rollback()
@@ -152,12 +154,12 @@ func UpdateBalanceAfterDeposit(
 	}
 	if numRowsAffected != 1 {
 		tx.Rollback()
-		return errors.New("Wrong event: No rows affected")
+		return errors.New("UpdateBalanceAfterDeposit wrong event: no rows affected")
 	}
 
-	newBalanceAmount := balanceAmount + (SATS_PER_BTC * Transaction.AmountInCents / btcCurrentPrice)
+	newBalanceAmountInSats := balanceAmount + purchasedSats
 
-	result, err = tx.Exec(`UPDATE btcbalances SET amount=$1 WHERE user_id=$2;`, newBalanceAmount, UserId)
+	result, err = tx.Exec(`UPDATE btcbalances SET amount=$1 WHERE user_id=$2;`, newBalanceAmountInSats, UserId)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -170,7 +172,7 @@ func UpdateBalanceAfterDeposit(
 	}
 	if numRowsAffected != 1 {
 		tx.Rollback()
-		return errors.New("Wrong event: No rows in btc balance affected")
+		return errors.New("UpdateBalanceAfterDeposit wrong event: No rows in btc balance affected")
 	}
 
 	return tx.Commit()
@@ -188,7 +190,7 @@ func UpdateFailedFiatDeposit(Transaction types.WompiTx) error {
 		return err
 	}
 
-	return errors.New("Error on transaction: No Approved")
+	return errors.New("UpdateBalanceAfterDeposit error on transaction: No Approved")
 }
 
 func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
