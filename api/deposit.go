@@ -106,7 +106,7 @@ func CompareChecksum(wompiEvent types.WompiTransactionUpdatedEvent, AmountInCent
 	checksum := hex.EncodeToString(hash[:])
 
 	if checksum != wompiEvent.Signature.Checksum {
-		return errors.New("Checksum mismatch")
+		return errors.New("checksum mismatch")
 	}
 	return nil
 }
@@ -247,4 +247,56 @@ func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func GetDepositHistory(w http.ResponseWriter, r *http.Request) {
+	claims, err := middleware.GetClainsFromToken(r.Header)
+	if err != nil {
+		panic(err)
+	}
+
+	db := OpenConnection()
+	query := `
+		SELECT reference, id, amount_in_cents, status, user_id, purchased_sats, time_stamp
+		FROM public.fiat_deposit_tx
+		WHERE user_id=$1
+		ORDER BY time_stamp DESC;`
+
+	rows, err := db.Query(query, claims.Subject)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+	defer db.Close()
+
+	var fiatDepositTxHistory []types.FiatDepositTx
+
+	for rows.Next() {
+		var record types.FiatDepositTx
+		err := rows.Scan(
+			&record.Reference,
+			&record.Id,
+			&record.AmountInCents,
+			&record.Status,
+			&record.UserId,
+			&record.PurchasedSats,
+			&record.Timestamp,
+		)
+		if err != nil {
+			panic(err)
+		}
+		fiatDepositTxHistory = append(fiatDepositTxHistory, record)
+	}
+
+	if err := rows.Err(); err != nil {
+		panic(err)
+	}
+
+	if len(fiatDepositTxHistory) == 0 {
+		fiatDepositTxHistory = []types.FiatDepositTx{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	Conv, _ := json.MarshalIndent(fiatDepositTxHistory, "", " ")
+	fmt.Fprintf(w, "%s", Conv)
 }
