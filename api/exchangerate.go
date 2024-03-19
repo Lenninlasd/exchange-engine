@@ -12,7 +12,6 @@ import (
 )
 
 const TIME_FECHT_RATES = 45
-const ZENER_DEPOSIT_SPREAD = 0.01
 
 type ExchangeRate struct {
 	Disclaimer string             `json:"disclaimer"`
@@ -85,6 +84,19 @@ func getOpenexchangerates() (ExchangeRate, error) {
 	return rate, nil
 }
 
+func getZenerDepositSpread() (float64, error) {
+	db := OpenConnection()
+	defer db.Close()
+	var zenerDepositSpread float64
+
+	err := db.QueryRow("SELECT config_value FROM public.app_config WHERE config_key='ZENER_DEPOSIT_SPREAD'").Scan(&zenerDepositSpread)
+	if err != nil {
+		return 0, err
+	}
+
+	return zenerDepositSpread, err
+}
+
 // TODO: make unit test
 func Exchangerate() (uint64, error) {
 	db := OpenConnection()
@@ -126,8 +138,12 @@ func Exchangerate() (uint64, error) {
 		return 0, err
 	}
 
-	// include the zener deposit spread
-	priceAfterFee := USDCOP_price * BTCUSDT_price * (1 + ZENER_DEPOSIT_SPREAD)
+	zenerDepositSpread, err := getZenerDepositSpread()
+	if err != nil {
+		return 0, err
+	}
+
+	priceAfterFee := USDCOP_price * BTCUSDT_price * (1 + zenerDepositSpread)
 
 	return uint64(priceAfterFee * 100), nil
 }
