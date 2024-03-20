@@ -139,6 +139,8 @@ func Exchangerate() (uint64, error) {
 	}
 
 	zenerDepositSpread, err := getZenerDepositSpread()
+
+	fmt.Println("zenerDepositSpread", zenerDepositSpread)
 	if err != nil {
 		return 0, err
 	}
