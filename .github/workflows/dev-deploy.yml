@@ -54,7 +54,7 @@ jobs:
           script: |
             docker pull registry.digitalocean.com/zener/engine:dev-${{ github.sha }}
 
-            if [ "$(docker ps -aq -f name=engine)" ]; then
+            if [ "$(docker ps -aq --filter 'name=^/engine$')" ]; then
               echo "Stopping and removing the existing engine container..."
               docker stop engine
               docker rm engine
