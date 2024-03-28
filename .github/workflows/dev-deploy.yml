@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      SHA_COMMIT: ${{ github.sha[0:7] }}
+      SHA_COMMIT: ${{ github.sha }}
     steps:
     - uses: actions/checkout@v3
 
