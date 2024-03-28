@@ -33,10 +33,10 @@ jobs:
       run: doctl registry login --expiry-seconds 240
 
     - name: Build Image
-      run: docker build . -t registry.digitalocean.com/zener/engine:dev-${{ SHA_COMMIT }}
+      run: docker build . -t registry.digitalocean.com/zener/engine:dev-${{ env.SHA_COMMIT }}
 
     - name: Push Image
-      run: docker push registry.digitalocean.com/zener/engine:dev-${{ SHA_COMMIT }}
+      run: docker push registry.digitalocean.com/zener/engine:dev-${{ env.SHA_COMMIT }}
     - name: Print branch name
       run: |
         echo "Branch sha: ${{ github.sha }}"
