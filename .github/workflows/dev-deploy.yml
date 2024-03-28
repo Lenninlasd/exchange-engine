@@ -11,6 +11,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    env:
+      SHA_COMMIT: ${{ github.sha.substring(0, 7) }}
     steps:
     - uses: actions/checkout@v3
 
@@ -31,10 +33,14 @@ jobs:
       run: doctl registry login --expiry-seconds 240
 
     - name: Build Image
-      run: docker build . -t registry.digitalocean.com/zener/engine:dev-${{ github.event.push.head }}
+      run: docker build . -t registry.digitalocean.com/zener/engine:dev-${{ SHA_COMMIT }}
 
     - name: Push Image
-      run: docker push registry.digitalocean.com/zener/engine:dev-${{ github.event.push.head }}
+      run: docker push registry.digitalocean.com/zener/engine:dev-${{ SHA_COMMIT }}
+    - name: Print branch name
+      run: |
+        echo "Branch sha: ${{ github.sha }}"
+    
 
   # deploy:
   #   runs-on: ubuntu-latest
