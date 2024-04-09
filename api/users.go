@@ -33,6 +33,10 @@ func createReferralForUser(userId string, r *http.Request) error {
 
 	referrerIdBody.FromJSON(reqBody)
 
+	if referrerIdBody.ReferrerId == "" {
+		return nil
+	}
+
 	db := postgres.OpenConnection()
 
 	_, err = db.Exec(
@@ -84,7 +88,6 @@ func CreateUserAfterSignUpSupa(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	// TODO: get referrerId from optional body in case of Sign up
 	err = createReferralForUser(claims.Subject, r)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
