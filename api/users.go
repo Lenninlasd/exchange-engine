@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -9,22 +8,15 @@ import (
 	"github.com/lenninlasd/Engine/middleware"
 	"github.com/lenninlasd/Engine/pkg/utils"
 	"github.com/lenninlasd/Engine/postgres"
+	"github.com/lenninlasd/Engine/types"
 )
 
 func homeLink(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Restful API using Go and Postgres! from new version")
 }
 
-type ReferrerIdBody struct {
-	ReferrerId string `json:"referrer_id"`
-}
-
-func (referrerIdBody *ReferrerIdBody) FromJSON(msg []byte) error {
-	return json.Unmarshal(msg, referrerIdBody)
-}
-
 func createReferralForUser(userId string, r *http.Request) error {
-	var referrerIdBody ReferrerIdBody
+	var referrerIdBody types.ReferrerIdBody
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
