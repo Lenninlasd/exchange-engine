@@ -2,13 +2,43 @@ package api
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/lenninlasd/Engine/middleware"
+	"github.com/lenninlasd/Engine/pkg/utils"
+	"github.com/lenninlasd/Engine/postgres"
+	"github.com/lenninlasd/Engine/types"
 )
 
 func homeLink(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Restful API using Go and Postgres! from new version")
+}
+
+func createReferralForUser(userId string, r *http.Request) error {
+	var referrerIdBody types.ReferrerIdBody
+
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+
+	referrerIdBody.FromJSON(reqBody)
+
+	if referrerIdBody.ReferrerId == "" {
+		return nil
+	}
+
+	db := postgres.OpenConnection()
+
+	_, err = db.Exec(
+		`INSERT INTO public.referrals (user_id, referrer_id) VALUES ($1, $2)`,
+		userId, referrerIdBody.ReferrerId,
+	)
+
+	defer db.Close()
+
+	return err
 }
 
 func CreateUserAfterSignUpSupa(w http.ResponseWriter, r *http.Request) {
@@ -17,7 +47,7 @@ func CreateUserAfterSignUpSupa(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	db := OpenConnection()
+	db := postgres.OpenConnection()
 	defer db.Close()
 
 	tx, err := db.Begin()
@@ -27,8 +57,8 @@ func CreateUserAfterSignUpSupa(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = tx.Exec(`
-		INSERT INTO users (id, email) SELECT $1, $2
-		WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $1)`, claims.Subject, claims.Email)
+		INSERT INTO users (id, email, referral_id) SELECT $1, $2, $3
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $1)`, claims.Subject, claims.Email, utils.GenerateShortID(claims.Subject))
 	if err != nil {
 		tx.Rollback()
 		w.WriteHeader(http.StatusInternalServerError)
@@ -50,5 +80,10 @@ func CreateUserAfterSignUpSupa(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
+	err = createReferralForUser(claims.Subject, r)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err)
+	}
 	w.WriteHeader(http.StatusOK)
 }

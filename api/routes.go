@@ -33,6 +33,7 @@ func Routes() {
 	supaRouter.HandleFunc("/resume-withdrawal/{withdrawalId}", withdrawal.ResumeWithdrawal).Methods("POST")
 
 	router.HandleFunc("/", homeLink).Methods("GET")
+	router.HandleFunc("/referrer/{id}", CheckReferrerUser).Methods("GET")
 	router.HandleFunc("/wompi/event", UptateFiatDeposit).Methods("POST")
 
 	headers := handlers.AllowedHeaders([]string{
