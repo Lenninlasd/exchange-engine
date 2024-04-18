@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lenninlasd/Engine/middleware"
+	"github.com/lenninlasd/Engine/pkg/referrals"
 	"github.com/lenninlasd/Engine/types"
 )
 
@@ -23,6 +24,8 @@ const (
 	DECLINED = "DECLINED"
 	ERROR    = "ERROR"
 	VOIDED   = "VOIDED"
+
+	ORIGIN_WOMPI = "WOMPI"
 
 	SATS_PER_BTC = 100000000
 	MIN_DEPOSIT  = 100000
@@ -82,8 +85,8 @@ func CreateFiatDepositSupa(w http.ResponseWriter, r *http.Request) {
 
 	db := OpenConnection()
 	_, err = db.Exec(`
-		INSERT INTO fiat_deposit_tx (reference, amount_in_cents, status, user_id)
-		VALUES ($1, $2, $3, $4)`, depositTx.Reference, depositTx.AmountInCents, PENDING, userClaims.Subject)
+		INSERT INTO fiat_deposit_tx (reference, amount_in_cents, status, user_id, origin)
+		VALUES ($1, $2, $3, $4, $5)`, depositTx.Reference, depositTx.AmountInCents, PENDING, userClaims.Subject, ORIGIN_WOMPI)
 
 	defer db.Close()
 
@@ -127,13 +130,13 @@ func UpdateBalanceAfterDeposit(
 	Transaction types.WompiTx,
 	btcCurrentPriceInCents uint64,
 	balanceAmount uint64,
-) error {
+) (uint64, error) {
 	db := OpenConnection()
 	defer db.Close()
 
 	tx, err := db.Begin()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	purchasedSats := SATS_PER_BTC * Transaction.AmountInCents / btcCurrentPriceInCents
@@ -144,17 +147,17 @@ func UpdateBalanceAfterDeposit(
 	)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return 0, err
 	}
 
 	numRowsAffected, err := result.RowsAffected()
 	if err != nil {
 		tx.Rollback()
-		return err
+		return 0, err
 	}
 	if numRowsAffected != 1 {
 		tx.Rollback()
-		return errors.New("UpdateBalanceAfterDeposit wrong event: no rows affected")
+		return 0, errors.New("UpdateBalanceAfterDeposit wrong event: no rows affected")
 	}
 
 	newBalanceAmountInSats := balanceAmount + purchasedSats
@@ -162,20 +165,20 @@ func UpdateBalanceAfterDeposit(
 	result, err = tx.Exec(`UPDATE btcbalances SET amount=$1 WHERE user_id=$2;`, newBalanceAmountInSats, UserId)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return 0, err
 	}
 
 	numRowsAffected, err = result.RowsAffected()
 	if err != nil {
 		tx.Rollback()
-		return err
+		return 0, err
 	}
 	if numRowsAffected != 1 {
 		tx.Rollback()
-		return errors.New("UpdateBalanceAfterDeposit wrong event: No rows in btc balance affected")
+		return 0, errors.New("UpdateBalanceAfterDeposit wrong event: No rows in btc balance affected")
 	}
 
-	return tx.Commit()
+	return newBalanceAmountInSats, tx.Commit()
 }
 
 func UpdateFailedFiatDeposit(Transaction types.WompiTx) error {
@@ -240,11 +243,13 @@ func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	err = UpdateBalanceAfterDeposit(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPriceInCents, balance.Amount)
+	newBalanceAmountInSats, err := UpdateBalanceAfterDeposit(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPriceInCents, balance.Amount)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", err)
 	}
+
+	go referrals.CreateDepositReferral(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPriceInCents, newBalanceAmountInSats)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -257,7 +262,7 @@ func GetDepositHistory(w http.ResponseWriter, r *http.Request) {
 
 	db := OpenConnection()
 	query := `
-		SELECT reference, id, amount_in_cents, status, user_id, purchased_sats, time_stamp
+		SELECT reference, id, amount_in_cents, status, user_id, purchased_sats, origin, time_stamp
 		FROM public.fiat_deposit_tx
 		WHERE user_id=$1
 		ORDER BY time_stamp DESC;`
@@ -280,6 +285,7 @@ func GetDepositHistory(w http.ResponseWriter, r *http.Request) {
 			&record.Status,
 			&record.UserId,
 			&record.PurchasedSats,
+			&record.Origin,
 			&record.Timestamp,
 		)
 		if err != nil {

@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -56,8 +57,11 @@ func getbinanceBTCUSDT() (float64, error) {
 	}
 
 	price, err = strconv.ParseFloat(binancePrice.Price, 64)
+	if err == nil && price == 0 {
+		return price, errors.New("error on getbinanceBTCUSDT: BTCUSDT price can not be zero")
+	}
 
-	return price, nil
+	return price, err
 }
 
 func getOpenexchangerates() (ExchangeRate, error) {
