@@ -44,9 +44,8 @@ jobs:
     # TODO: create a reusable workflow for prod builds.
       runs-on: ubuntu-latest
       needs: [extract-context]
-      if: needs.extract-context.outputs.environment == "prod"
+      if: needs.extract-context.outputs.environment == 'prod'
       env:
-        TAG_NAME: ${{ github.event.release.tag_name }}
         ENGINE_PORT: ":8282"
         POSTGRES_HOST: "postgres_prod"
         POSTGRES_PORT: "5432"
@@ -97,7 +96,7 @@ jobs:
     # TODO: create a reusable workflow for dev builds.
     runs-on: ubuntu-latest
     needs: [extract-context]
-    if: needs.extract-context.outputs.environment == "dev"
+    if: needs.extract-context.outputs.environment == 'dev'
     env:
       POSTGRES_HOST: "postgres"
       POSTGRES_PORT: "5432"
