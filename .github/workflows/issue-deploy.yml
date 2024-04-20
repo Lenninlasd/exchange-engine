@@ -28,7 +28,7 @@ jobs:
 
           if [ "${{ github.event_name }}" == "issue_comment" ]; then
             echo "${{ github.event.issue_comment }}"
-            ISSUE_BODY="${{ github.event.issue_comment.body }}"
+            ISSUE_BODY="${{ github.event.issue_comment.bodyText }}"
           fi
 
           ENV=$(echo "$ISSUE_BODY" | grep -o -- '--env [^ ]*' | cut -d' ' -f2)
