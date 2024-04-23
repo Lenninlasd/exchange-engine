@@ -5,8 +5,9 @@ import (
 )
 
 type User struct {
-	Id    string `json:"id"`
-	Email string `json:"email"`
+	Id         string `json:"id"`
+	Email      string `json:"email"`
+	ReferralId string `json:"referralid"`
 }
 
 func (user *User) FromJSON(msg []byte) error {

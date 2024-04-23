@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,6 +11,26 @@ import (
 	"github.com/lenninlasd/Engine/postgres"
 	"github.com/lenninlasd/Engine/types"
 )
+
+func GetUser(w http.ResponseWriter, r *http.Request) {
+	claims, err := middleware.GetClainsFromToken(r.Header)
+	if err != nil {
+		panic(err)
+	}
+
+	db := postgres.OpenConnection()
+	defer db.Close()
+
+	var user types.User
+
+	err = db.QueryRow("SELECT id, email, referral_id FROM public.users WHERE id=$1", claims.Subject).Scan(&user.Id, &user.Email, &user.ReferralId)
+	if err != nil {
+		panic(err)
+	}
+
+	Conv, _ := json.MarshalIndent(user, "", " ")
+	fmt.Fprintf(w, "%s", string(Conv))
+}
 
 func homeLink(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Restful API using Go and Postgres! from new version")

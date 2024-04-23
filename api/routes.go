@@ -18,6 +18,7 @@ func Routes() {
 	supaRouter.HandleFunc("/", homeLink).Methods("GET")
 	supaRouter.HandleFunc("/signup", CreateUserAfterSignUpSupa).Methods("POST")
 	supaRouter.HandleFunc("/balance", GetUserBalanceFromHttpSupa).Methods("GET")
+	supaRouter.HandleFunc("/user", GetUser).Methods("GET")
 	supaRouter.HandleFunc("/exchangerate/BTCCOP", ExchangerateApi).Methods("GET")
 	supaRouter.HandleFunc("/mempool/transaction-fee", GetTransactionFee).Methods("GET")
 	supaRouter.HandleFunc("/mempool/transaction-fee/{address}", GetTransactionFee).Methods("GET")
