@@ -3,7 +3,8 @@ package constants
 import "os"
 
 const (
-	ZENER_FEE uint64 = 900
+	ZENER_FEE    uint64 = 900
+	SATS_PER_BTC uint64 = 100000000
 
 	WITHDRAW_STATUS_INICIALIZED = "initialized"
 	WITHDRAW_STATUS_BROADCASTED = "broadcasted"
@@ -14,6 +15,13 @@ const (
 	TIME_TO_FECHT_MEMPOOL = 1
 
 	ADMIN_ROLE = "admin"
+
+	APPROVED = "APPROVED"
+
+	// * Referral
+	BY_REFERRAL_ORIGIN         = "BY_REFERRAL"
+	REFERRING_ORIGIN           = "REFERRING"
+	MIN_REFFERAL_AMOUNT uint64 = 10000000
 )
 
 var WALLET_ADDRESS = os.Getenv("WALLET_ADDRESS")

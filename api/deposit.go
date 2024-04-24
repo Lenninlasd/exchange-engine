@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	"github.com/lenninlasd/Engine/constants"
 	"github.com/lenninlasd/Engine/middleware"
 	"github.com/lenninlasd/Engine/pkg/referrals"
 	"github.com/lenninlasd/Engine/types"
@@ -27,8 +28,7 @@ const (
 
 	ORIGIN_WOMPI = "WOMPI"
 
-	SATS_PER_BTC = 100000000
-	MIN_DEPOSIT  = 100000
+	MIN_DEPOSIT = 100000
 )
 
 type RefResponse struct {
@@ -139,7 +139,7 @@ func UpdateBalanceAfterDeposit(
 		return 0, err
 	}
 
-	purchasedSats := SATS_PER_BTC * Transaction.AmountInCents / btcCurrentPriceInCents
+	purchasedSats := constants.SATS_PER_BTC * Transaction.AmountInCents / btcCurrentPriceInCents
 
 	result, err := tx.Exec(
 		`UPDATE fiat_deposit_tx SET id=$1, status=$2, purchased_sats=$3 WHERE reference=$4 AND status = $5`,

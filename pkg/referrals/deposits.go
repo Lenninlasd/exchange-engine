@@ -1,29 +1,47 @@
 package referrals
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/lenninlasd/Engine/constants"
 	"github.com/lenninlasd/Engine/postgres"
 	"github.com/lenninlasd/Engine/types"
 )
 
-const REFERRAL_ORIGIN = "REFERRAL"
-const APPROVED = "APPROVED"
-const MIN_REFFERAL_AMOUNT uint64 = 10000000
-const SATS_PER_BTC uint64 = 100000000
+func checkUserValidForReferral(db *sql.DB, userId string) (bool, error) {
+	var userHasBeenReferred bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM public.referrals WHERE user_id=$1 AND referrer_id is not null)", userId).Scan(&userHasBeenReferred)
+	if err != nil || !userHasBeenReferred {
+		return false, err
+	}
+
+	var hasUsedReferralBonus bool
+	query := `SELECT EXISTS(SELECT 1 FROM public.fiat_deposit_tx WHERE user_id=$1 AND origin=$2))`
+	err = db.QueryRow(query, userId, constants.BY_REFERRAL_ORIGIN).Scan(&hasUsedReferralBonus)
+	if err != nil || hasUsedReferralBonus {
+		return false, err
+	}
+
+	return true, nil
+}
 
 func CreateDepositReferral(userId string, transaction types.WompiTx, btcCurrentPriceInCents uint64, balanceAmountInSats uint64) {
-	// TODO: this user has referrals?
-	// check if was refered
-	// check if do not have first referal
-
-	if transaction.AmountInCents < MIN_REFFERAL_AMOUNT {
+	if transaction.AmountInCents < constants.MIN_REFFERAL_AMOUNT {
 		return
 	}
 
 	db := postgres.OpenConnection()
 	defer db.Close()
+
+	isValidForReferral, err := checkUserValidForReferral(db, userId)
+	if err != nil {
+		panic(err)
+	}
+	if !isValidForReferral {
+		return
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -31,14 +49,14 @@ func CreateDepositReferral(userId string, transaction types.WompiTx, btcCurrentP
 	}
 
 	reference := uuid.New().String()
-	newAmountInCents := MIN_REFFERAL_AMOUNT / 10
-	newPurchasedSats := SATS_PER_BTC * newAmountInCents / btcCurrentPriceInCents
+	newAmountInCents := constants.MIN_REFFERAL_AMOUNT / 10
+	newPurchasedSats := constants.SATS_PER_BTC * newAmountInCents / btcCurrentPriceInCents
 
 	// * the new `id` is the reference of the main deposit_tx
 	_, err = tx.Exec(
 		`INSERT INTO fiat_deposit_tx (reference, id, amount_in_cents, purchased_sats, status, user_id, origin)
-		VALUES ($1, $2, $3, $4, $5, $6, 'REFERRAL')`, reference, transaction.Reference, newAmountInCents,
-		newPurchasedSats, APPROVED, userId,
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`, reference, transaction.Reference, newAmountInCents,
+		newPurchasedSats, constants.APPROVED, userId, constants.BY_REFERRAL_ORIGIN,
 	)
 	if err != nil {
 		tx.Rollback()
