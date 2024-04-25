@@ -18,7 +18,7 @@ func checkUserValidForReferral(db *sql.DB, userId string) (bool, error) {
 	}
 
 	var hasUsedReferralBonus bool
-	query := `SELECT EXISTS(SELECT 1 FROM public.fiat_deposit_tx WHERE user_id=$1 AND origin=$2))`
+	query := `SELECT EXISTS(SELECT 1 FROM public.fiat_deposit_tx WHERE user_id=$1 AND origin=$2)`
 	err = db.QueryRow(query, userId, constants.BY_REFERRAL_ORIGIN).Scan(&hasUsedReferralBonus)
 	if err != nil || hasUsedReferralBonus {
 		return false, err
