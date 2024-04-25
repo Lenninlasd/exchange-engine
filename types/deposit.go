@@ -21,6 +21,7 @@ type FiatDepositTx struct {
 	Status        string    `json:"status"`
 	UserId        string    `json:"user_id"`
 	PurchasedSats uint64    `json:"purchased_sats"`
+	Origin        string    `json:"origin"`
 	Timestamp     time.Time `json:"timestamp"`
 }
 
