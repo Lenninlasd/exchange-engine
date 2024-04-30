@@ -12,6 +12,10 @@ import (
 	"github.com/lenninlasd/Engine/types"
 )
 
+func homeLink(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Restful API using Go and Postgres! from new version")
+}
+
 func GetUser(w http.ResponseWriter, r *http.Request) {
 	claims, err := middleware.GetClainsFromToken(r.Header)
 	if err != nil {
@@ -23,7 +27,7 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 
 	var user types.User
 
-	err = db.QueryRow("SELECT id, email, referral_id FROM public.users WHERE id=$1", claims.Subject).Scan(&user.Id, &user.Email, &user.ReferralId)
+	err = db.QueryRow("SELECT id, email, referral_id, kyc FROM public.users WHERE id=$1", claims.Subject).Scan(&user.Id, &user.Email, &user.ReferralId, &user.Kyc)
 	if err != nil {
 		panic(err)
 	}
@@ -32,8 +36,46 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", string(Conv))
 }
 
-func homeLink(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Restful API using Go and Postgres! from new version")
+func UpdateUser(w http.ResponseWriter, r *http.Request) {
+	claims, err := middleware.GetClainsFromToken(r.Header)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err)
+	}
+
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		panic(err)
+	}
+
+	var kyc types.Kyc
+	err = kyc.FromJSON(reqBody)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		panic(err)
+	}
+
+	kycJson, err := kyc.ToJSON()
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		panic(err)
+	}
+
+	db := postgres.OpenConnection()
+	defer db.Close()
+
+	_, err = db.Exec(`
+    UPDATE public.users SET kyc = $1 WHERE id = $2`,
+		kycJson,
+		claims.Subject,
+	)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func createReferralForUser(userId string, r *http.Request) error {
