@@ -20,7 +20,6 @@ import (
 
 const (
 	PENDING  = "PENDING"
-	APPROVED = "APPROVED"
 	DECLINED = "DECLINED"
 	ERROR    = "ERROR"
 	VOIDED   = "VOIDED"
@@ -212,7 +211,7 @@ func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// the wompi event is Decline or Error
-	if wompiEvent.Data.Transaction.Status != APPROVED {
+	if wompiEvent.Data.Transaction.Status != constants.APPROVED {
 		err = UpdateFailedFiatDeposit(wompiEvent.Data.Transaction)
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", err)

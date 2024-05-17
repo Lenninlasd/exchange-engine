@@ -26,12 +26,13 @@ func Routes() {
 		Queries("amount", "{amount:[0-9]+}", "currency", "{currency:[A-Za-z]+}").
 		Methods("GET")
 	supaRouter.HandleFunc("/deposit", CreateFiatDepositSupa).Methods("POST")
+	supaRouter.HandleFunc("/deposit-history", GetDepositHistory).Methods("GET")
 	supaRouter.HandleFunc("/pending-withdrawal-tx", GetPendingWithdrawalTxSupa).Methods("GET")
 	supaRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
 	supaRouter.HandleFunc("/withdrawals-history", withdrawal.GetWithdrawalsHistory).Methods("GET")
-	supaRouter.HandleFunc("/deposit-history", GetDepositHistory).Methods("GET")
 	supaRouter.HandleFunc("/blocked-withdrawals", withdrawal.GetBlockedWithdrawals).Methods("GET")
 	supaRouter.HandleFunc("/resume-withdrawal/{withdrawalId}", withdrawal.ResumeWithdrawal).Methods("POST")
+	supaRouter.HandleFunc("/referral-history", GetReferralHistory).Methods("GET")
 
 	router.HandleFunc("/", homeLink).Methods("GET")
 	router.HandleFunc("/referrer/{id}", CheckReferrerUser).Methods("GET")
