@@ -2,7 +2,6 @@ package api
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -21,7 +20,6 @@ import (
 
 const (
 	PENDING  = "PENDING"
-	APPROVED = "APPROVED"
 	DECLINED = "DECLINED"
 	ERROR    = "ERROR"
 	VOIDED   = "VOIDED"
@@ -125,18 +123,13 @@ func GetFiatDepositData(reference string) (types.FiatDepositTx, error) {
 	return fiatDepositTx, err
 }
 
-func UpdateBalanceAfterDeposit(
-	UserId string,
-	Transaction types.WompiTx,
-	btcCurrentPriceInCents uint64,
-	balanceAmount uint64,
-) (uint64, error) {
+func UpdateBalanceAfterDeposit(UserId string, Transaction types.WompiTx, btcCurrentPriceInCents uint64) error {
 	db := OpenConnection()
 	defer db.Close()
 
 	tx, err := db.Begin()
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	purchasedSats := constants.SATS_PER_BTC * Transaction.AmountInCents / btcCurrentPriceInCents
@@ -147,38 +140,36 @@ func UpdateBalanceAfterDeposit(
 	)
 	if err != nil {
 		tx.Rollback()
-		return 0, err
+		return err
 	}
 
 	numRowsAffected, err := result.RowsAffected()
 	if err != nil {
 		tx.Rollback()
-		return 0, err
+		return err
 	}
 	if numRowsAffected != 1 {
 		tx.Rollback()
-		return 0, errors.New("UpdateBalanceAfterDeposit wrong event: no rows affected")
+		return errors.New("UpdateBalanceAfterDeposit wrong event: no rows affected")
 	}
 
-	newBalanceAmountInSats := balanceAmount + purchasedSats
-
-	result, err = tx.Exec(`UPDATE btcbalances SET amount=$1 WHERE user_id=$2;`, newBalanceAmountInSats, UserId)
+	result, err = tx.Exec(`UPDATE btcbalances SET amount=amount+$1 WHERE user_id=$2;`, purchasedSats, UserId)
 	if err != nil {
 		tx.Rollback()
-		return 0, err
+		return err
 	}
 
 	numRowsAffected, err = result.RowsAffected()
 	if err != nil {
 		tx.Rollback()
-		return 0, err
+		return err
 	}
 	if numRowsAffected != 1 {
 		tx.Rollback()
-		return 0, errors.New("UpdateBalanceAfterDeposit wrong event: No rows in btc balance affected")
+		return errors.New("UpdateBalanceAfterDeposit wrong event: No rows in btc balance affected")
 	}
 
-	return newBalanceAmountInSats, tx.Commit()
+	return tx.Commit()
 }
 
 func UpdateFailedFiatDeposit(Transaction types.WompiTx) error {
@@ -219,17 +210,8 @@ func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	balance, err := GetUserBalance(fiatDepositTx.UserId)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			userNotExist(w)
-			return
-		}
-		panic(err)
-	}
-
 	// the wompi event is Decline or Error
-	if wompiEvent.Data.Transaction.Status != APPROVED {
+	if wompiEvent.Data.Transaction.Status != constants.APPROVED {
 		err = UpdateFailedFiatDeposit(wompiEvent.Data.Transaction)
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", err)
@@ -243,13 +225,14 @@ func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	newBalanceAmountInSats, err := UpdateBalanceAfterDeposit(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPriceInCents, balance.Amount)
+	err = UpdateBalanceAfterDeposit(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPriceInCents)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", err)
 	}
 
-	go referrals.CreateDepositReferral(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPriceInCents, newBalanceAmountInSats)
+	go referrals.CreateDepositToReferredUser(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPriceInCents)
+	go referrals.CreateDepositForReferring(fiatDepositTx.UserId, wompiEvent.Data.Transaction, btcCurrentPriceInCents)
 
 	w.WriteHeader(http.StatusOK)
 }
