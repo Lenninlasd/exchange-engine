@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/lenninlasd/Engine/api/deposit"
 	"github.com/lenninlasd/Engine/api/withdrawal"
 	"github.com/lenninlasd/Engine/middleware"
 )
@@ -27,11 +28,14 @@ func Routes() {
 		Methods("GET")
 	supaRouter.HandleFunc("/deposit", CreateFiatDepositSupa).Methods("POST")
 	supaRouter.HandleFunc("/deposit-history", GetDepositHistory).Methods("GET")
+	supaRouter.HandleFunc("/update-expired-deposits", deposit.UpdatePendingExpiredDeposits).Methods("PATCH")
+
 	supaRouter.HandleFunc("/pending-withdrawal-tx", GetPendingWithdrawalTxSupa).Methods("GET")
 	supaRouter.HandleFunc("/withdraw", Withdraw).Methods("POST")
 	supaRouter.HandleFunc("/withdrawals-history", withdrawal.GetWithdrawalsHistory).Methods("GET")
 	supaRouter.HandleFunc("/blocked-withdrawals", withdrawal.GetBlockedWithdrawals).Methods("GET")
 	supaRouter.HandleFunc("/resume-withdrawal/{withdrawalId}", withdrawal.ResumeWithdrawal).Methods("POST")
+
 	supaRouter.HandleFunc("/referral-history", GetReferralHistory).Methods("GET")
 
 	router.HandleFunc("/", homeLink).Methods("GET")
@@ -43,7 +47,7 @@ func Routes() {
 		"Content-Type",
 		"Authorization",
 	})
-	methods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"})
+	methods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "PATCH", "HEAD", "OPTIONS"})
 	origins := handlers.AllowedOrigins([]string{
 		"http://localhost:3000",
 		"https://zener-fe.vercel.app",
