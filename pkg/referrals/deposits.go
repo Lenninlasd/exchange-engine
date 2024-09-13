@@ -84,13 +84,14 @@ func CreateDepositToReferredUser(userId string, transaction types.WompiTx, btcCu
 	tx.Commit()
 }
 
+// Get the Referring User and filter if the user is not admin
 func getReferringUser(db *sql.DB, referredUserId string) (string, error) {
 	var userId string
 	err := db.QueryRow(`
 		SELECT users.id as referrer_user_id
 		FROM public.referrals
 		JOIN public.users ON users.referral_id = referrer_id
-		WHERE user_id=$1`, referredUserId).Scan(&userId)
+		WHERE user_id=$1 AND public.users.role != 'admin'`, referredUserId).Scan(&userId)
 
 	return userId, err
 }
@@ -113,6 +114,9 @@ func CreateDepositForReferring(referredUserId string, transaction types.WompiTx,
 
 	userId, err := getReferringUser(db, referredUserId)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return
+		}
 		panic(err)
 	}
 
