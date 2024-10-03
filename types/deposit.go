@@ -14,6 +14,14 @@ func (depositTx *DepositTx) FromJSON(msg []byte) error {
 	return json.Unmarshal(msg, depositTx)
 }
 
+type Reference struct {
+	Reference string `json:"reference"`
+}
+
+func (reference *Reference) FromJSON(msg []byte) error {
+	return json.Unmarshal(msg, reference)
+}
+
 type FiatDepositTx struct {
 	Reference     string    `json:"reference"`
 	Id            string    `json:"id"`
@@ -23,6 +31,18 @@ type FiatDepositTx struct {
 	PurchasedSats uint64    `json:"purchased_sats"`
 	Origin        string    `json:"origin"`
 	Timestamp     time.Time `json:"timestamp"`
+}
+
+type FiatDepositTxFull struct {
+	Reference     string    `json:"reference"`
+	Id            string    `json:"id"`
+	AmountInCents uint64    `json:"amount_in_cents"`
+	Status        string    `json:"status"`
+	UserId        string    `json:"user_id"`
+	PurchasedSats uint64    `json:"purchased_sats"`
+	Origin        string    `json:"origin"`
+	Timestamp     time.Time `json:"timestamp"`
+	IsBacked      bool      `json:"is_backed"`
 }
 
 type WompiTx struct {

@@ -14,6 +14,9 @@ import (
 
 func GetBlockedWithdrawals(w http.ResponseWriter, r *http.Request) {
 	claims, err := middleware.GetClainsFromToken(r.Header)
+	if err != nil {
+		panic(err)
+	}
 
 	role, err := utils.GetUserRole(claims.Subject)
 	if err != nil {
