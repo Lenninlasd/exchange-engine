@@ -33,7 +33,7 @@ func Routes() {
 	supaRouter.HandleFunc("/deposit-history", GetDepositHistory).Methods("GET")
 	supaRouter.HandleFunc("/approved-deposit-history", admin.GetApprovedDepositHistory).Methods("GET")
 	supaRouter.HandleFunc("/deposit", CreateFiatDepositSupa).Methods("POST")
-	supaRouter.HandleFunc("/fund-backup", admin.UpdateFundBackup).Methods("POST")
+	supaRouter.HandleFunc("/fund-backup", admin.UpdateFundBackup).Methods("PATCH")
 	supaRouter.HandleFunc("/update-expired-deposits", deposit.UpdatePendingExpiredDeposits).Methods("PATCH")
 
 	// Withdrawals

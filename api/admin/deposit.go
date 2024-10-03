@@ -110,6 +110,11 @@ func UpdateFundBackup(w http.ResponseWriter, r *http.Request) {
 	var reference types.Reference
 	reference.FromJSON(reqBody)
 
+	if reference.Reference == "" {
+		http.Error(w, "Missing reference parameter", http.StatusBadRequest)
+		return
+	}
+
 	db := postgres.OpenConnection()
 	defer db.Close()
 
