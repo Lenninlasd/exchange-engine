@@ -13,7 +13,8 @@ import (
 	"github.com/lenninlasd/Engine/middleware"
 )
 
-func Routes() {
+// Routes returns a configured router
+func Routes() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	supaRouter := router.PathPrefix("/supa").Subrouter()
 	supaRouter.Use(middleware.ValidateTokenMiddleware)
@@ -61,9 +62,17 @@ func Routes() {
 		"https://zener-fe.vercel.app",
 		"https://zenerbtc.com",
 	})
-	var port = os.Getenv("ENGINE_PORT")
+
+	// Apply CORS middleware
+	return handlers.CORS(headers, methods, origins)(router).(*mux.Router)
+}
+
+// StartServer runs the HTTP server
+func StartServer() {
+	router := Routes()
+	port := os.Getenv("ENGINE_PORT")
 	if port == "" {
 		port = ":8080"
 	}
-	log.Fatal(http.ListenAndServe(port, handlers.CORS(headers, methods, origins)(router)))
+	log.Fatal(http.ListenAndServe(port, router))
 }
