@@ -14,7 +14,7 @@ import (
 )
 
 // Routes returns a configured router
-func Routes() *mux.Router {
+func Routes() http.Handler {
 	router := mux.NewRouter().StrictSlash(true)
 	supaRouter := router.PathPrefix("/supa").Subrouter()
 	supaRouter.Use(middleware.ValidateTokenMiddleware)
@@ -64,7 +64,7 @@ func Routes() *mux.Router {
 	})
 
 	// Apply CORS middleware
-	return handlers.CORS(headers, methods, origins)(router).(*mux.Router)
+	return handlers.CORS(headers, methods, origins)(router)
 }
 
 // StartServer runs the HTTP server
