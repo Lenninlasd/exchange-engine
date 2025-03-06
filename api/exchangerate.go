@@ -108,7 +108,6 @@ func getZenerDepositSpread() (float64, error) {
 	return zenerDepositSpread, err
 }
 
-// TODO: make unit test
 func Exchangerate() (uint64, error) {
 	db := OpenConnection()
 	defer db.Close()
@@ -160,12 +159,13 @@ func Exchangerate() (uint64, error) {
 	return uint64(priceAfterFee * 100), nil
 }
 
+var exchangerateFunc = Exchangerate // Default function
+
 func ExchangerateApi(w http.ResponseWriter, r *http.Request) {
-	price, err := Exchangerate()
+	price, err := exchangerateFunc()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", "Error loading rates")
-		panic(err)
 	}
 
 	fmt.Fprintf(w, "%d", price)

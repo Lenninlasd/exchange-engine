@@ -14,10 +14,10 @@ import (
 )
 
 // Routes returns a configured router
-func Routes() http.Handler {
+func Routes(validateMiddleware func(http.Handler) http.Handler) http.Handler {
 	router := mux.NewRouter().StrictSlash(true)
 	supaRouter := router.PathPrefix("/supa").Subrouter()
-	supaRouter.Use(middleware.ValidateTokenMiddleware)
+	supaRouter.Use(validateMiddleware) // Injected middleware
 	supaRouter.HandleFunc("/", homeLink).Methods("GET")
 	supaRouter.HandleFunc("/signup", CreateUserAfterSignUpSupa).Methods("POST")
 	supaRouter.HandleFunc("/balance", GetUserBalanceFromHttpSupa).Methods("GET")
@@ -69,7 +69,7 @@ func Routes() http.Handler {
 
 // StartServer runs the HTTP server
 func StartServer() {
-	router := Routes()
+	router := Routes(middleware.ValidateTokenMiddleware)
 	port := os.Getenv("ENGINE_PORT")
 	if port == "" {
 		port = ":8080"
