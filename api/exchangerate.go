@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const TIME_FECHT_RATES = 45
+const TIME_FETCH_RATES = 45
 
 type ExchangeRate struct {
 	Disclaimer string             `json:"disclaimer"`
@@ -35,45 +35,47 @@ func (price *BinancePrice) FromJSON(msg []byte) error {
 	return json.Unmarshal(msg, price)
 }
 
-func getbinanceBTCUSDT() (float64, error) {
+// ExchangeRateRepo contains methods for retrieving exchange rates.
+type ExchangeRateRepo struct{}
 
+// GetBinanceBTCUSDT fetches the BTC/USDT price from Binance API.
+func (repo *ExchangeRateRepo) GetBinanceBTCUSDT() (float64, error) {
 	var binancePrice BinancePrice
-	var price float64
-
 	resp, err := http.Get("https://api.binance.us/api/v3/ticker/price?symbol=BTCUSDT")
 	if err != nil {
-		return price, err
+		return 0, err
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return price, err
+		return 0, err
 	}
 
-	err = binancePrice.FromJSON(body)
+	err = json.Unmarshal(body, &binancePrice)
 	if err != nil {
-		return price, err
+		return 0, err
 	}
 
-	price, err = strconv.ParseFloat(binancePrice.Price, 64)
+	price, err := strconv.ParseFloat(binancePrice.Price, 64)
 	if err == nil && price == 0 {
-		return price, errors.New("error on getbinanceBTCUSDT: BTCUSDT price can not be zero")
+		return 0, errors.New("BTCUSDT price cannot be zero")
 	}
 
 	return price, err
 }
 
-func getOpenexchangerates() (ExchangeRate, error) {
+// GetOpenExchangeRates fetches USD/COP exchange rate from OpenExchangeRates API.
+func (repo *ExchangeRateRepo) GetOpenExchangeRates() (ExchangeRate, error) {
 	var rate ExchangeRate
-	appId := os.Getenv("OPENEXCHANGE_APP_ID")
+	appID := os.Getenv("OPENEXCHANGE_APP_ID")
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://openexchangerates.org/api/latest.json?app_id=%s&symbols=COP,", appId), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://openexchangerates.org/api/latest.json?app_id=%s&symbols=COP", appID), nil)
 	if err != nil {
 		return rate, err
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Token %s", appId))
+	req.Header.Set("Authorization", fmt.Sprintf("Token %s", appID))
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -87,82 +89,84 @@ func getOpenexchangerates() (ExchangeRate, error) {
 		return rate, err
 	}
 
-	err = rate.FromJSON(body)
-	if err != nil {
-		return rate, err
-	}
-
-	return rate, nil
+	err = json.Unmarshal(body, &rate)
+	return rate, err
 }
 
-func getZenerDepositSpread() (float64, error) {
-	db := OpenConnection()
-	defer db.Close()
-	var zenerDepositSpread float64
-
-	err := db.QueryRow("SELECT config_value FROM public.app_config WHERE config_key='ZENER_DEPOSIT_SPREAD'").Scan(&zenerDepositSpread)
-	if err != nil {
-		return 0, err
-	}
-
-	return zenerDepositSpread, err
+// GetZenerDepositSpread fetches the spread from the database.
+func (repo *ExchangeRateRepo) GetZenerDepositSpread(db *sql.DB) (float64, error) {
+	var spread float64
+	err := db.QueryRow("SELECT config_value FROM public.app_config WHERE config_key='ZENER_DEPOSIT_SPREAD'").Scan(&spread)
+	return spread, err
 }
 
-func Exchangerate() (uint64, error) {
-	db := OpenConnection()
-	defer db.Close()
+// GetUSDCOPPriceFromDB retrieves the last USDCOP price from the database.
+func (repo *ExchangeRateRepo) GetUSDCOPPriceFromDB(db *sql.DB) (float64, time.Time, error) {
+	var price float64
+	var updatedAt time.Time
+	err := db.QueryRow("SELECT price, updatedat FROM marketprice WHERE symbol='USDCOP'").Scan(&price, &updatedAt)
+	return price, updatedAt, err
+}
 
-	var currentPrice float64
-	var USDCOP_price float64
-	var uptatedAt time.Time
+// UpdateUSDCOPPriceInDB updates or inserts the latest USDCOP price into the database.
+func (repo *ExchangeRateRepo) UpdateUSDCOPPriceInDB(db *sql.DB, price float64, updatedAt time.Time) error {
+	_, err := db.Exec(`INSERT INTO marketprice(symbol, price, updatedat) VALUES ('USDCOP', $1, $2)
+		ON CONFLICT (symbol) DO UPDATE SET price = EXCLUDED.price, updatedat = EXCLUDED.updatedat`,
+		price, updatedAt,
+	)
+	return err
+}
 
-	err := db.QueryRow("SELECT price, updatedat FROM marketprice WHERE symbol='USDCOP'").Scan(&currentPrice, &uptatedAt)
+func Exchangerate(db *sql.DB, repo *ExchangeRateRepo) (uint64, error) {
+	currentPrice, updatedAt, err := repo.GetUSDCOPPriceFromDB(db)
 	if err != nil && err != sql.ErrNoRows {
 		return 0, err
 	}
 
 	currentTime := time.Now()
-	difference := currentTime.Sub(uptatedAt)
+	difference := currentTime.Sub(updatedAt)
 
-	if difference >= time.Minute*TIME_FECHT_RATES || currentPrice == 0 {
-		rate, err := getOpenexchangerates()
+	var usdCopPrice float64
+	if difference >= time.Minute*TIME_FETCH_RATES || currentPrice == 0 {
+		rate, err := repo.GetOpenExchangeRates()
 		if err != nil {
 			return 0, err
 		}
 
-		USDCOP_price = rate.Rates["COP"]
+		usdCopPrice = rate.Rates["COP"]
 
-		_, err = db.Exec(`INSERT INTO marketprice(symbol, price, updatedat) VALUES ('USDCOP', $1, $2)
-			ON CONFLICT (symbol) DO UPDATE SET price = EXCLUDED.price, updatedat = EXCLUDED.updatedat`,
-			USDCOP_price, currentTime,
-		)
+		err = repo.UpdateUSDCOPPriceInDB(db, usdCopPrice, currentTime)
 		if err != nil {
 			return 0, err
 		}
 	} else {
-		USDCOP_price = currentPrice
+		usdCopPrice = currentPrice
 	}
 
-	BTCUSDT_price, err := getbinanceBTCUSDT()
+	btcUsdtPrice, err := repo.GetBinanceBTCUSDT()
 	if err != nil {
 		return 0, err
 	}
 
-	zenerDepositSpread, err := getZenerDepositSpread()
+	zenerDepositSpread, err := repo.GetZenerDepositSpread(db)
 
 	if err != nil {
 		return 0, err
 	}
 
-	priceAfterFee := USDCOP_price * BTCUSDT_price * (1 + zenerDepositSpread)
+	priceAfterFee := usdCopPrice * btcUsdtPrice * (1 + zenerDepositSpread)
 
 	return uint64(priceAfterFee * 100), nil
 }
 
 var exchangerateFunc = Exchangerate // Default function
+var exchangeRateRepo = &ExchangeRateRepo{}
 
 func ExchangerateApi(w http.ResponseWriter, r *http.Request) {
-	price, err := exchangerateFunc()
+	db := OpenConnection()
+	defer db.Close()
+
+	price, err := exchangerateFunc(db, exchangeRateRepo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", "Error loading rates")
