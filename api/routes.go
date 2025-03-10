@@ -13,10 +13,11 @@ import (
 	"github.com/lenninlasd/Engine/middleware"
 )
 
-func Routes() {
+// Routes returns a configured router
+func Routes(validateMiddleware func(http.Handler) http.Handler) http.Handler {
 	router := mux.NewRouter().StrictSlash(true)
 	supaRouter := router.PathPrefix("/supa").Subrouter()
-	supaRouter.Use(middleware.ValidateTokenMiddleware)
+	supaRouter.Use(validateMiddleware) // Injected middleware
 	supaRouter.HandleFunc("/", homeLink).Methods("GET")
 	supaRouter.HandleFunc("/signup", CreateUserAfterSignUpSupa).Methods("POST")
 	supaRouter.HandleFunc("/balance", GetUserBalanceFromHttpSupa).Methods("GET")
@@ -61,9 +62,17 @@ func Routes() {
 		"https://zener-fe.vercel.app",
 		"https://zenerbtc.com",
 	})
-	var port = os.Getenv("ENGINE_PORT")
+
+	// Apply CORS middleware
+	return handlers.CORS(headers, methods, origins)(router)
+}
+
+// StartServer runs the HTTP server
+func StartServer() {
+	router := Routes(middleware.ValidateTokenMiddleware)
+	port := os.Getenv("ENGINE_PORT")
 	if port == "" {
 		port = ":8080"
 	}
-	log.Fatal(http.ListenAndServe(port, handlers.CORS(headers, methods, origins)(router)))
+	log.Fatal(http.ListenAndServe(port, router))
 }
