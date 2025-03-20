@@ -221,7 +221,7 @@ func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	btcCurrentPriceInCents, err := Exchangerate(db, exchangeRateRepo)
+	btcCurrentPriceInCents, err := Exchangerate(exchangeRateRepo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", "Error loading rates")

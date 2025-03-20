@@ -1,7 +1,6 @@
 package api
 
 import (
-	"database/sql"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -9,11 +8,11 @@ import (
 )
 
 // Mock Exchangerate function
-func mockExchangerateSuccess(db *sql.DB, repo *ExchangeRateRepo) (uint64, error) {
+func mockExchangerateSuccess(repo *ExchangeRateRepo) (uint64, error) {
 	return 200000000, nil // Simulated BTC/COP price
 }
 
-func mockExchangerateFail(db *sql.DB, repo *ExchangeRateRepo) (uint64, error) {
+func mockExchangerateFail(repo *ExchangeRateRepo) (uint64, error) {
 	err := errors.New("failed to fetch exchange rate")
 	return 0, err
 }

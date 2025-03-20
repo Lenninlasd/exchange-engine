@@ -117,7 +117,14 @@ func (repo *ExchangeRateRepo) UpdateUSDCOPPriceInDB(db *sql.DB, price float64, u
 	return err
 }
 
-func Exchangerate(db *sql.DB, repo *ExchangeRateRepo) (uint64, error) {
+func (repo *ExchangeRateRepo) OpenConnection() *sql.DB {
+	return OpenConnection()
+}
+
+func Exchangerate(repo *ExchangeRateRepo) (uint64, error) {
+	db := repo.OpenConnection()
+	defer db.Close()
+
 	currentPrice, updatedAt, err := repo.GetUSDCOPPriceFromDB(db)
 	if err != nil && err != sql.ErrNoRows {
 		return 0, err
@@ -163,10 +170,7 @@ var exchangerateFunc = Exchangerate // Default function
 var exchangeRateRepo = &ExchangeRateRepo{}
 
 func ExchangerateApi(w http.ResponseWriter, r *http.Request) {
-	db := OpenConnection()
-	defer db.Close()
-
-	price, err := exchangerateFunc(db, exchangeRateRepo)
+	price, err := exchangerateFunc(exchangeRateRepo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", "Error loading rates")
