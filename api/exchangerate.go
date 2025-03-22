@@ -35,6 +35,15 @@ func (price *BinancePrice) FromJSON(msg []byte) error {
 	return json.Unmarshal(msg, price)
 }
 
+type ExchangeRateService interface {
+	GetBinanceBTCUSDT() (float64, error)
+	GetOpenExchangeRates() (ExchangeRate, error)
+	GetZenerDepositSpread(db *sql.DB) (float64, error)
+	GetUSDCOPPriceFromDB(db *sql.DB) (float64, time.Time, error)
+	UpdateUSDCOPPriceInDB(db *sql.DB, price float64, updatedAt time.Time) error
+	OpenConnection() *sql.DB
+}
+
 // ExchangeRateRepo contains methods for retrieving exchange rates.
 type ExchangeRateRepo struct{}
 
@@ -121,7 +130,7 @@ func (repo *ExchangeRateRepo) OpenConnection() *sql.DB {
 	return OpenConnection()
 }
 
-func Exchangerate(repo *ExchangeRateRepo) (uint64, error) {
+func Exchangerate(repo ExchangeRateService) (uint64, error) {
 	db := repo.OpenConnection()
 	defer db.Close()
 
