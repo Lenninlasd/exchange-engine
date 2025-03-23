@@ -14,7 +14,7 @@ import (
 
 const TIME_FETCH_RATES = 45
 
-type ExchangeRate struct {
+type ExchangeRateData struct {
 	Disclaimer string             `json:"disclaimer"`
 	License    string             `json:"license"`
 	Timestamp  int64              `json:"timestamp"`
@@ -22,7 +22,7 @@ type ExchangeRate struct {
 	Rates      map[string]float64 `json:"rates"`
 }
 
-func (rate *ExchangeRate) FromJSON(msg []byte) error {
+func (rate *ExchangeRateData) FromJSON(msg []byte) error {
 	return json.Unmarshal(msg, rate)
 }
 
@@ -35,20 +35,20 @@ func (price *BinancePrice) FromJSON(msg []byte) error {
 	return json.Unmarshal(msg, price)
 }
 
-type ExchangeRateService interface {
+type ExchangeRateProvider interface {
 	GetBinanceBTCUSDT() (float64, error)
-	GetOpenExchangeRates() (ExchangeRate, error)
+	GetOpenExchangeRates() (ExchangeRateData, error)
 	GetZenerDepositSpread(db *sql.DB) (float64, error)
 	GetUSDCOPPriceFromDB(db *sql.DB) (float64, time.Time, error)
 	UpdateUSDCOPPriceInDB(db *sql.DB, price float64, updatedAt time.Time) error
 	OpenConnection() *sql.DB
 }
 
-// ExchangeRateRepo contains methods for retrieving exchange rates.
-type ExchangeRateRepo struct{}
+// ExchangeRateService contains methods for retrieving exchange rates.
+type ExchangeRateService struct{}
 
 // GetBinanceBTCUSDT fetches the BTC/USDT price from Binance API.
-func (repo *ExchangeRateRepo) GetBinanceBTCUSDT() (float64, error) {
+func (repo *ExchangeRateService) GetBinanceBTCUSDT() (float64, error) {
 	var binancePrice BinancePrice
 	resp, err := http.Get("https://api.binance.us/api/v3/ticker/price?symbol=BTCUSDT")
 	if err != nil {
@@ -75,8 +75,8 @@ func (repo *ExchangeRateRepo) GetBinanceBTCUSDT() (float64, error) {
 }
 
 // GetOpenExchangeRates fetches USD/COP exchange rate from OpenExchangeRates API.
-func (repo *ExchangeRateRepo) GetOpenExchangeRates() (ExchangeRate, error) {
-	var rate ExchangeRate
+func (repo *ExchangeRateService) GetOpenExchangeRates() (ExchangeRateData, error) {
+	var rate ExchangeRateData
 	appID := os.Getenv("OPENEXCHANGE_APP_ID")
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://openexchangerates.org/api/latest.json?app_id=%s&symbols=COP", appID), nil)
@@ -103,14 +103,14 @@ func (repo *ExchangeRateRepo) GetOpenExchangeRates() (ExchangeRate, error) {
 }
 
 // GetZenerDepositSpread fetches the spread from the database.
-func (repo *ExchangeRateRepo) GetZenerDepositSpread(db *sql.DB) (float64, error) {
+func (repo *ExchangeRateService) GetZenerDepositSpread(db *sql.DB) (float64, error) {
 	var spread float64
 	err := db.QueryRow("SELECT config_value FROM public.app_config WHERE config_key='ZENER_DEPOSIT_SPREAD'").Scan(&spread)
 	return spread, err
 }
 
 // GetUSDCOPPriceFromDB retrieves the last USDCOP price from the database.
-func (repo *ExchangeRateRepo) GetUSDCOPPriceFromDB(db *sql.DB) (float64, time.Time, error) {
+func (repo *ExchangeRateService) GetUSDCOPPriceFromDB(db *sql.DB) (float64, time.Time, error) {
 	var price float64
 	var updatedAt time.Time
 	err := db.QueryRow("SELECT price, updatedat FROM marketprice WHERE symbol='USDCOP'").Scan(&price, &updatedAt)
@@ -118,7 +118,7 @@ func (repo *ExchangeRateRepo) GetUSDCOPPriceFromDB(db *sql.DB) (float64, time.Ti
 }
 
 // UpdateUSDCOPPriceInDB updates or inserts the latest USDCOP price into the database.
-func (repo *ExchangeRateRepo) UpdateUSDCOPPriceInDB(db *sql.DB, price float64, updatedAt time.Time) error {
+func (repo *ExchangeRateService) UpdateUSDCOPPriceInDB(db *sql.DB, price float64, updatedAt time.Time) error {
 	_, err := db.Exec(`INSERT INTO marketprice(symbol, price, updatedat) VALUES ('USDCOP', $1, $2)
 		ON CONFLICT (symbol) DO UPDATE SET price = EXCLUDED.price, updatedat = EXCLUDED.updatedat`,
 		price, updatedAt,
@@ -126,11 +126,11 @@ func (repo *ExchangeRateRepo) UpdateUSDCOPPriceInDB(db *sql.DB, price float64, u
 	return err
 }
 
-func (repo *ExchangeRateRepo) OpenConnection() *sql.DB {
+func (repo *ExchangeRateService) OpenConnection() *sql.DB {
 	return OpenConnection()
 }
 
-func Exchangerate(repo ExchangeRateService) (uint64, error) {
+func ExchangeRate(repo ExchangeRateProvider) (uint64, error) {
 	db := repo.OpenConnection()
 	defer db.Close()
 
@@ -165,7 +165,6 @@ func Exchangerate(repo ExchangeRateService) (uint64, error) {
 	}
 
 	zenerDepositSpread, err := repo.GetZenerDepositSpread(db)
-
 	if err != nil {
 		return 0, err
 	}
@@ -175,10 +174,10 @@ func Exchangerate(repo ExchangeRateService) (uint64, error) {
 	return uint64(priceAfterFee * 100), nil
 }
 
-var exchangerateFunc = Exchangerate // Default function
-var exchangeRateRepo = &ExchangeRateRepo{}
+var exchangerateFunc = ExchangeRate // Default function
+var exchangeRateRepo = &ExchangeRateService{}
 
-func ExchangerateApi(w http.ResponseWriter, r *http.Request) {
+func ExchangeRateApi(w http.ResponseWriter, r *http.Request) {
 	price, err := exchangerateFunc(exchangeRateRepo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

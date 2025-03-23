@@ -7,12 +7,12 @@ import (
 	"testing"
 )
 
-// Mock Exchangerate function
-func mockExchangerateSuccess(repo ExchangeRateService) (uint64, error) {
+// Mock ExchangeRate function
+func mockExchangeRateSuccess(repo ExchangeRateProvider) (uint64, error) {
 	return 200000000, nil // Simulated BTC/COP price
 }
 
-func mockExchangerateFail(repo ExchangeRateService) (uint64, error) {
+func mockExchangeRateFail(repo ExchangeRateProvider) (uint64, error) {
 	err := errors.New("failed to fetch exchange rate")
 	return 0, err
 }
@@ -23,10 +23,10 @@ func MockValidateTokenMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func TestExchangerateApiSuccess(t *testing.T) {
+func TestExchangeRateApi_Success(t *testing.T) {
 	// Inject mock
-	exchangerateFunc = mockExchangerateSuccess
-	defer func() { exchangerateFunc = Exchangerate }() // Reset after test
+	exchangerateFunc = mockExchangeRateSuccess
+	defer func() { exchangerateFunc = ExchangeRate }() // Reset after test
 
 	router := Routes(MockValidateTokenMiddleware) // Get router
 
@@ -45,10 +45,10 @@ func TestExchangerateApiSuccess(t *testing.T) {
 	}
 }
 
-func TestExchangerateApiFail(t *testing.T) {
+func TestExchangeRateApi_Fail(t *testing.T) {
 	// Inject mock
-	exchangerateFunc = mockExchangerateFail
-	defer func() { exchangerateFunc = Exchangerate }() // Reset after test
+	exchangerateFunc = mockExchangeRateFail
+	defer func() { exchangerateFunc = ExchangeRate }() // Reset after test
 
 	router := Routes(MockValidateTokenMiddleware)
 
