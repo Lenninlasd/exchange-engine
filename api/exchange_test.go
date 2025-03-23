@@ -48,7 +48,7 @@ func (m *MockExchangeRateService) OpenConnection() *sql.DB {
 func CreateMockExchangeRateService(mockDB *sql.DB) *MockExchangeRateService {
 	service := new(MockExchangeRateService)
 	service.On("OpenConnection").Return(mockDB)
-	service.On("GetBinanceBTCUSDT").Return(60000.0, nil)
+	service.On("GetBinanceBTCUSDT").Return(60000.0, nil).Maybe()
 	service.On("GetZenerDepositSpread", mockDB).Return(0.02, nil)
 	service.On("GetOpenExchangeRates").Return(ExchangeRateData{
 		Rates: map[string]float64{"COP": 4010.0},
@@ -65,7 +65,7 @@ func TestExchangeRate_ReturnsPriceFromOpenExchangeRates(t *testing.T) {
 
 	// Mock service
 	service := CreateMockExchangeRateService(mockDB)
-	service.On("GetUSDCOPPriceFromDB", mockDB).Return(4000.0, time.Now().Add(-time.Hour), nil)
+	service.On("GetUSDCOPPriceFromDB", mockDB).Return(4000.0, time.Now().Add(-time.Hour), nil).Once()
 
 	expectedPrice := 24541200000 // 4010 * 60000 * (1 + 0.02) * 100
 
@@ -75,7 +75,7 @@ func TestExchangeRate_ReturnsPriceFromOpenExchangeRates(t *testing.T) {
 	assert.Equal(t, uint64(expectedPrice), result)
 
 	// if price from database is zero, it should return the price from OpenExchangeRates
-	service.On("GetUSDCOPPriceFromDB", mockDB).Return(0, time.Now(), nil)
+	service.On("GetUSDCOPPriceFromDB", mockDB).Return(0.0, time.Now(), nil)
 	result, err = ExchangeRate(service)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(expectedPrice), result)
@@ -99,18 +99,36 @@ func TestExchangeRate_ReturnsPriceFromDatabase(t *testing.T) {
 	assert.Equal(t, uint64(expectedPrice), result)
 }
 
-func TestExchangeRate_Fails(t *testing.T) {
+func TestExchangeRate_GetUSDCOPPriceFromDB_Fails(t *testing.T) {
 	// Mock database
 	mockDB, _, err := sqlmock.New()
 	assert.NoError(t, err)
 	defer mockDB.Close()
 
-	// Mock service
+	testError := errors.New("failed to fetch USDCOP price from DB")
 	service := CreateMockExchangeRateService(mockDB)
-	service.On("GetUSDCOPPriceFromDB", mockDB).Return(0.0, time.Now(), errors.New("failed to fetch Binance BTCUSDT"))
+	service.On("GetUSDCOPPriceFromDB", mockDB).Return(0.0, time.Now(), testError)
 
-	// Run test
+	// Run test fail for GetUSDCOPPriceFromDB
 	result, err := ExchangeRate(service)
+	assert.Equal(t, testError, err)
+	assert.Error(t, err)
+	assert.Equal(t, uint64(0), result)
+}
+
+func TestExchangeRate_GetBinanceBTCUSDT_Fails(t *testing.T) {
+	mockDB, _, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
+
+	testError := errors.New("failed to fetch Binance BTCUSDT")
+	service := new(MockExchangeRateService)
+	service.On("OpenConnection").Return(mockDB)
+	service.On("GetUSDCOPPriceFromDB", mockDB).Return(4000.0, time.Now(), nil)
+	service.On("GetBinanceBTCUSDT").Return(0.0, testError)
+
+	result, err := ExchangeRate(service)
+	assert.Equal(t, testError, err)
 	assert.Error(t, err)
 	assert.Equal(t, uint64(0), result)
 }
