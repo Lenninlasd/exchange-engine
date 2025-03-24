@@ -188,6 +188,9 @@ func UpdateFailedFiatDeposit(Transaction types.WompiTx) error {
 }
 
 func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
+	db := OpenConnection()
+	defer db.Close()
+
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		fmt.Fprintf(w, "wrong data")
@@ -218,7 +221,7 @@ func UptateFiatDeposit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	btcCurrentPriceInCents, err := Exchangerate()
+	btcCurrentPriceInCents, err := ExchangeRate(exchangeRateRepo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", "Error loading rates")

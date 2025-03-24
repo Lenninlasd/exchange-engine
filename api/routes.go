@@ -23,7 +23,7 @@ func Routes(validateMiddleware func(http.Handler) http.Handler) http.Handler {
 	supaRouter.HandleFunc("/balance", GetUserBalanceFromHttpSupa).Methods("GET")
 	supaRouter.HandleFunc("/user", GetUser).Methods("GET")
 
-	supaRouter.HandleFunc("/exchangerate/BTCCOP", ExchangerateApi).Methods("GET")
+	supaRouter.HandleFunc("/exchangerate/BTCCOP", ExchangeRateApi).Methods("GET")
 	supaRouter.HandleFunc("/mempool/transaction-fee", GetTransactionFee).Methods("GET")
 	supaRouter.HandleFunc("/mempool/transaction-fee/{address}", GetTransactionFee).Methods("GET")
 	supaRouter.HandleFunc("/reference", GetDepositReference).
